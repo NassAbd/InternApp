@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import os
-from scrapers import safran
+from scrapers import safran, ariane
 
 app = FastAPI()
 
@@ -47,23 +47,26 @@ def get_jobs():
 @app.post("/scrape")
 def scrape_jobs():
     jobs = load_jobs()
-    max_id = max([job["id"] for job in jobs], default=0)
 
     # Appeler chaque scraper
     new_jobs = []
-    for scraper in [safran]:
+    for scraper in [safran, ariane]:
         try:
             site_jobs = scraper.fetch_jobs()
             for job in site_jobs:
                 # éviter les doublons par lien
                 if not any(j["link"] == job["link"] for j in jobs):
-                    max_id += 1
-                    job["id"] = max_id
+                    # mark job as new
+                    job["new"] = True
                     new_jobs.append(job)
+                else:
+                    print(f"Doublon trouvé: {job['link']}")
         except Exception as e:
             print(f"Erreur scraper {scraper.__name__}: {e}")
 
-    jobs.extend(new_jobs)
+    for job in jobs:
+        job["new"] = False
+    jobs = new_jobs + jobs
     save_jobs(jobs)
 
     return {"added": len(new_jobs), "total": len(jobs)}

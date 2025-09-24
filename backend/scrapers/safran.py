@@ -29,23 +29,12 @@ def fetch_jobs():
             company = info_spans[0].inner_text().strip()
             location = info_spans[1].inner_text().strip()
 
-            contract = None
-            domain = None
-
-            for span in info_spans:
-                text = span.inner_text().strip()
-                if text in ["CDI", "CDD", "Stage", "Alternance"]:
-                    contract = text
-                elif " " in text and not contract:  # heuristique pour "Ingénieur & Cadre", "Technicien" etc.
-                    domain = text
-
             jobs.append({
+                "module": "safran",
                 "company": company,
                 "title": title,
                 "location": location,
                 "link": link,
-                "contract": contract,
-                "domain": domain,
             })
 
         browser.close()

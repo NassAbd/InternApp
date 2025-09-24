@@ -2,7 +2,6 @@ import { useState } from "react"; // <--- Obligatoire
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -10,11 +9,11 @@ import {
 } from "@/components/ui/table";
 
 type Job = {
-  id: number;
   company: string;
   title: string;
   location: string;
   link: string;
+  new: boolean;
 };
 
 type Props = {
@@ -47,20 +46,38 @@ export function JobsTable({ jobs }: Props) {
         </TableHeader>
         <TableBody>
           {displayedJobs.map((job) => (
-            <TableRow key={job.id}>
-              <TableCell className="truncate">{job.title}</TableCell>
-              <TableCell className="truncate">{job.company}</TableCell>
-              <TableCell className="truncate">{job.location}</TableCell>
-              <TableCell className="truncate">
-                <a
-                  href={job.link}
-                  target="_blank"
-                  className="text-blue-500 underline"
-                >
-                  Voir l'offre
-                </a>
-              </TableCell>
-            </TableRow>
+            <TableRow key={job.link}>
+  <TableCell
+  className="truncate"
+  style={job.new ? { backgroundColor: "#DCFCE7" } : undefined}
+>
+  {job.title}
+</TableCell>
+  <TableCell
+  className="truncate"
+  style={job.new ? { backgroundColor: "#DCFCE7" } : undefined}
+>
+  {job.company}
+</TableCell>
+  <TableCell
+  className="truncate"
+  style={job.new ? { backgroundColor: "#DCFCE7" } : undefined}
+>
+  {job.location}
+</TableCell>
+  <TableCell
+  className="truncate"
+  style={job.new ? { backgroundColor: "#DCFCE7" } : undefined}
+>
+    <a
+      href={job.link}
+      target="_blank"
+      className="text-blue-500 underline"
+    >
+      Voir l'offre
+    </a>
+  </TableCell>
+</TableRow>
           ))}
 
           {/* Lignes vides pour conserver la hauteur */}
