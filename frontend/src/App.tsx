@@ -43,25 +43,98 @@ function App() {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Internships</h1>
+    <div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "1.5rem",
+    height: "100vh", // prend toute la page
+    boxSizing: "border-box",
+  }}
+>
+  {/* Header : titre + bouton */}
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      marginBottom: "1.5rem",
+    }}
+  >
+    <h1
+      style={{
+        fontSize: "2.5rem",
+        fontWeight: "bold",
+        marginBottom: "1rem",
+      }}
+    >
+      Internships
+    </h1>
 
-      <button
-        onClick={handleScrape}
-        className="px-4 py-2 bg-blue-600 text-white rounded mb-4"
-        disabled={loading}
+    <button
+      onClick={handleScrape}
+      disabled={loading}
+      style={{
+        padding: "1rem 2rem",
+        backgroundColor: "#86EFAC",
+        color: "#065F46",
+        border: "none",
+        borderRadius: "0.5rem",
+        fontSize: "1.25rem",
+        fontWeight: 600,
+        cursor: loading ? "not-allowed" : "pointer",
+        opacity: loading ? 0.7 : 1,
+        transition: "background-color 0.2s ease",
+      }}
+      onMouseEnter={(e) => {
+        if (!loading) e.currentTarget.style.backgroundColor = "#4ADE80";
+      }}
+      onMouseLeave={(e) => {
+        if (!loading) e.currentTarget.style.backgroundColor = "#86EFAC";
+      }}
+    >
+      {loading ? "Scraping..." : "Search"}
+    </button>
+  </div>
+
+  {/* Content */}
+  <div
+    style={{
+      flex: 1, // prend tout l’espace restant
+      width: "100%",
+      maxWidth: "1200px",
+      overflow: "hidden",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+    }}
+  >
+    {jobs.length === 0 ? (
+      <p
+        style={{
+          color: "#6B7280",
+          fontStyle: "italic",
+          marginTop: "2rem",
+        }}
       >
-        {loading ? "Scraping..." : "Rechercher"}
-      </button>
+        Aucune offre disponible pour le moment.
+      </p>
+    ) : (
+      <div
+        style={{
+          width: "100%",
+          height: "100%", // prend tout l'espace restant
+          overflowY: "auto", // scroll interne si besoin
+        }}
+      >
+        <JobsTable jobs={jobs} />
+      </div>
+    )}
+  </div>
+</div>
 
-      {jobs.length === 0 ? (
-  <p className="text-gray-500 italic">
-    Aucune offre disponible pour le moment.
-  </p>
-) : (
-  <JobsTable jobs={jobs} />
-)}
-    </div>
+
   );
 }
 
