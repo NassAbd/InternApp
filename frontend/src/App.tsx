@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { JobsTable } from "./components/JobsTable";
+import styles from "./App.module.css";
 
 type Job = {
   id: number;
@@ -43,96 +44,33 @@ function App() {
   };
 
   return (
-    <div
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "1.5rem",
-    height: "100vh", // prend toute la page
-    boxSizing: "border-box",
-  }}
->
-  {/* Header : titre + bouton */}
-  <div
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      marginBottom: "1.5rem",
-    }}
-  >
-    <h1
-      style={{
-        fontSize: "2.5rem",
-        fontWeight: "bold",
-        marginBottom: "1rem",
-      }}
-    >
-      Internships
-    </h1>
+    <div className={styles.container}>
+      {/* Header : titre + bouton */}
+      <div className={styles.header}>
+        <h1 className={styles.title}>Internships</h1>
 
-    <button
-      onClick={handleScrape}
-      disabled={loading}
-      style={{
-        padding: "1rem 2rem",
-        backgroundColor: "#86EFAC",
-        color: "#065F46",
-        border: "none",
-        borderRadius: "0.5rem",
-        fontSize: "1.25rem",
-        fontWeight: 600,
-        cursor: loading ? "not-allowed" : "pointer",
-        opacity: loading ? 0.7 : 1,
-        transition: "background-color 0.2s ease",
-      }}
-      onMouseEnter={(e) => {
-        if (!loading) e.currentTarget.style.backgroundColor = "#4ADE80";
-      }}
-      onMouseLeave={(e) => {
-        if (!loading) e.currentTarget.style.backgroundColor = "#86EFAC";
-      }}
-    >
-      {loading ? "Scraping..." : "Search"}
-    </button>
-  </div>
-
-  {/* Content */}
-  <div
-    style={{
-      flex: 1, // prend tout l’espace restant
-      width: "100%",
-      maxWidth: "1200px",
-      overflow: "hidden",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-    }}
-  >
-    {jobs.length === 0 ? (
-      <p
-        style={{
-          color: "#6B7280",
-          fontStyle: "italic",
-          marginTop: "2rem",
-        }}
-      >
-        Aucune offre disponible pour le moment.
-      </p>
-    ) : (
-      <div
-        style={{
-          width: "100%",
-          height: "100%", // prend tout l'espace restant
-          overflowY: "auto", // scroll interne si besoin
-        }}
-      >
-        <JobsTable jobs={jobs} />
+        <button
+          onClick={handleScrape}
+          disabled={loading}
+          className={styles.scrapeButton}
+        >
+          {loading ? "Scraping..." : "Search"}
+        </button>
       </div>
-    )}
-  </div>
-</div>
+
+      {/* Content */}
+      <div className={styles.content}>
+        {jobs.length === 0 ? (
+          <p className={styles.noJobsMessage}>
+            Aucune offre disponible pour le moment.
+          </p>
+        ) : (
+          <div className={styles.jobsContainer}>
+            <JobsTable jobs={jobs} />
+          </div>
+        )}
+      </div>
+    </div>
 
 
   );
