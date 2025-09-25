@@ -6,8 +6,26 @@ def fetch_jobs():
     jobs = []
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        page = browser.new_page()
+        browser = p.chromium.launch(
+            headless=True,  # mode headless plus proche du "headed"
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+            ],
+        )
+
+        context = browser.new_context(
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            viewport={"width": 1280, "height": 800},
+            locale="fr-FR",
+        )
+
+        page = context.new_page()
         page.goto(url, timeout=60000)
 
         # Attendre que la liste d'offres charge
