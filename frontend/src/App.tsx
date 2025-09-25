@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { JobsTable } from "./components/JobsTable";
+import SourceToggle from "./components/SourceToggle";
 import styles from "./App.module.css";
 
 type Job = {
@@ -48,6 +49,11 @@ function App() {
       {/* Header : titre + bouton */}
       <div className={styles.header}>
         <h1 className={styles.title}>Internships</h1>
+        <p className={styles.subtitle}>
+    This app scrapes internship listings, highlights newly published offers, and makes them easy to explore.
+  </p>
+
+  <SourceToggle />
 
         <button
           onClick={handleScrape}

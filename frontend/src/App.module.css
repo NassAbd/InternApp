@@ -65,3 +65,12 @@
   height: 100%;
   overflow-y: auto;
 }
+
+.subtitle {
+  font-size: 1.125rem;
+  color: #4b5563; /* gris moyen */
+  text-align: center;
+  max-width: 1200px;
+  line-height: 1.5;
+  margin: 0 auto;
+}
