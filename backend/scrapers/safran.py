@@ -29,7 +29,7 @@ def fetch_jobs():
         page.goto(url, timeout=60000)
 
         # Attendre que la liste d'offres charge
-        page.wait_for_selector(".c-offer-item")
+        page.wait_for_selector(".c-offer-item", timeout=3000)
 
         # Sélectionner tous les items
         items = page.query_selector_all(".c-offer-item")

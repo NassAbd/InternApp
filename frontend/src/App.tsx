@@ -14,6 +14,7 @@ type Job = {
 function App() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
+  const [failedScrapers, setFailedScrapers] = useState<string[]>([]);
 
   // Charger les jobs existants
   const fetchJobs = async () => {
@@ -33,8 +34,13 @@ function App() {
   // Déclencher le scraping
   const handleScrape = async () => {
     setLoading(true);
+    setFailedScrapers([]);
     try {
-      await fetch("http://localhost:8000/scrape", { method: "POST" });
+      const res = await fetch("http://localhost:8000/scrape", { method: "POST" });
+      const data = await res.json();
+      if (data.failed_scrapers && data.failed_scrapers.length > 0) {
+        setFailedScrapers(data.failed_scrapers);
+      }
       // Recharger les jobs après le scraping
       await fetchJobs();
     } catch (err) {
@@ -50,10 +56,10 @@ function App() {
       <div className={styles.header}>
         <h1 className={styles.title}>Internships</h1>
         <p className={styles.subtitle}>
-    This app scrapes internship listings, highlights newly published offers, and makes them easy to explore.
-  </p>
+          This app scrapes internship listings, highlights newly published offers, and makes them easy to explore.
+        </p>
 
-  <SourceToggle />
+        <SourceToggle />
 
         <button
           onClick={handleScrape}
@@ -62,6 +68,13 @@ function App() {
         >
           {loading ? "Scraping..." : "Search"}
         </button>
+
+        {/* Affichage des scrapers échoués */}
+        {failedScrapers.length > 0 && (
+          <p className={styles.failedScrapers}>
+            ⚠ Scrapers failed: {failedScrapers.join(", ")}
+          </p>
+        )}
       </div>
 
       {/* Content */}
@@ -77,10 +90,7 @@ function App() {
         )}
       </div>
     </div>
-
-
   );
 }
 
 export default App;
-

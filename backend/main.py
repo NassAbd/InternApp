@@ -48,25 +48,32 @@ def get_jobs():
 def scrape_jobs():
     jobs = load_jobs()
 
-    # Appeler chaque scraper
     new_jobs = []
+    failed_scrapers = []
+
     for scraper in [safran, ariane]:
         try:
             site_jobs = scraper.fetch_jobs()
             for job in site_jobs:
                 # éviter les doublons par lien
                 if not any(j["link"] == job["link"] for j in jobs):
-                    # mark job as new
                     job["new"] = True
                     new_jobs.append(job)
                 else:
                     print(f"Doublon trouvé: {job['link']}")
         except Exception as e:
             print(f"Erreur scraper {scraper.__name__}: {e}")
+            failed_scrapers.append(scraper.__name__)
 
+    # Marquer les anciens jobs comme non-nouveaux
     for job in jobs:
         job["new"] = False
+
     jobs = new_jobs + jobs
     save_jobs(jobs)
 
-    return {"added": len(new_jobs), "total": len(jobs)}
+    return {
+        "added": len(new_jobs),
+        "total": len(jobs),
+        "failed_scrapers": failed_scrapers,
+    }
