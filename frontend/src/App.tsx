@@ -137,7 +137,7 @@ function App() {
         {loading ? (
           <>
             <div className={styles.loader}></div>
-            <p>Go get a coffee, scraping these sources will take a while...</p>
+            <p>Go get a tea, scraping these sources will take a while...</p>
           </>
         ) : jobs.length === 0 ? (
           <p className={styles.noJobsMessage}>No jobs scraped yet.</p>
