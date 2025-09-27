@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { JobsTable } from "./components/JobsTable";
 import SourceToggle from "./components/SourceToggle";
+import ScraperWarningToggle from "./components/ScraperWarningToggle";
 import styles from "./App.module.css";
 
 type Job = {
@@ -56,17 +57,18 @@ function App() {
       <div className={styles.header}>
         <h1 className={styles.title}>Internships</h1>
         <p className={styles.subtitle}>
-          This app scrapes internship listings, highlights newly published offers, and makes them easy to explore.
+          Scrapes internship listings, highlights newly published offers, and makes them easy to explore.
         </p>
 
         <SourceToggle />
+        <ScraperWarningToggle />
 
         <button
           onClick={handleScrape}
           disabled={loading}
           className={styles.scrapeButton}
         >
-          {loading ? "Scraping..." : "Search"}
+          {loading ? "Scraping..." : "Scrape"}
         </button>
 
         {/* Affichage des scrapers échoués */}
@@ -79,10 +81,13 @@ function App() {
 
       {/* Content */}
       <div className={styles.content}>
-        {jobs.length === 0 ? (
-          <p className={styles.noJobsMessage}>
-            Aucune offre disponible pour le moment.
-          </p>
+        {loading ? (
+          <>
+          <div className={styles.loader}></div>
+          <p>Go get a coffee, scraping all these sources will take a while...</p>
+          </>
+        ) : jobs.length === 0 ? (
+          <p className={styles.noJobsMessage}>No jobs scraped yet.</p>
         ) : (
           <div className={styles.jobsContainer}>
             <JobsTable jobs={jobs} />
