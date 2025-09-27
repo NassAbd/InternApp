@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import os
-from scrapers import safran, ariane
+from scrapers import airbus, ariane, cnes, thales
 
 app = FastAPI()
 
@@ -51,7 +51,7 @@ def scrape_jobs():
     new_jobs = []
     failed_scrapers = []
 
-    for scraper in [safran, ariane]:
+    for scraper in [airbus, ariane, cnes, thales]:
         try:
             site_jobs = scraper.fetch_jobs()
             for job in site_jobs:
