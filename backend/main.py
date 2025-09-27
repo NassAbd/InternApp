@@ -54,13 +54,17 @@ def scrape_jobs():
     for scraper in [airbus, ariane, cnes, thales]:
         try:
             site_jobs = scraper.fetch_jobs()
+            # Construire un set des liens déjà présents
+            existing_links = {j["link"] for j in jobs}
+
             for job in site_jobs:
-                # éviter les doublons par lien
-                if not any(j["link"] == job["link"] for j in jobs):
+                if job["link"] not in existing_links:
                     job["new"] = True
                     new_jobs.append(job)
+                    existing_links.add(job["link"])  # important pour éviter les doublons au sein de la même fournée
                 else:
                     print(f"Doublon trouvé: {job['link']}")
+                    
         except Exception as e:
             print(f"Erreur scraper {scraper.__name__}: {e}")
             failed_scrapers.append(scraper.__name__)
