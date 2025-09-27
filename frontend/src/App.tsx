@@ -16,6 +16,8 @@ function App() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [failedScrapers, setFailedScrapers] = useState<string[]>([]);
+  const [selectedModules, setSelectedModules] = useState<string[]>([]);
+  const [availableModules, setAvailableModules] = useState<string[]>([]);
 
   // Charger les jobs existants
   const fetchJobs = async () => {
@@ -28,8 +30,20 @@ function App() {
     }
   };
 
+  // Charger la liste des modules
+  const fetchModules = async () => {
+    try {
+      const res = await fetch("http://localhost:8000/modules");
+      const data = await res.json();
+      setAvailableModules(data);
+    } catch {
+      setAvailableModules([]);
+    }
+  };
+
   useEffect(() => {
     fetchJobs();
+    fetchModules();
   }, []);
 
   // Déclencher le scraping
@@ -37,18 +51,39 @@ function App() {
     setLoading(true);
     setFailedScrapers([]);
     try {
-      const res = await fetch("http://localhost:8000/scrape", { method: "POST" });
+      const endpoint =
+        selectedModules.length === 0
+          ? "http://localhost:8000/scrape"
+          : "http://localhost:8000/scrape_modules";
+
+      const options =
+        selectedModules.length === 0
+          ? { method: "POST" }
+          : {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ modules: selectedModules }),
+            };
+
+      const res = await fetch(endpoint, options);
       const data = await res.json();
       if (data.failed_scrapers && data.failed_scrapers.length > 0) {
         setFailedScrapers(data.failed_scrapers);
       }
-      // Recharger les jobs après le scraping
       await fetchJobs();
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleModule = (module: string) => {
+    setSelectedModules((prev) =>
+      prev.includes(module)
+        ? prev.filter((m) => m !== module)
+        : [...prev, module]
+    );
   };
 
   return (
@@ -63,6 +98,25 @@ function App() {
         <SourceToggle />
         <ScraperWarningToggle />
 
+        {/* Sélecteur de modules (chargé dynamiquement) */}
+        <div className={styles.modulesContainer}>
+          {availableModules.length === 0 ? (
+            <p>Loading modules...</p>
+          ) : (
+            availableModules.map((m) => (
+              <label key={m} className={styles.moduleCheckbox}>
+                <input
+                  type="checkbox"
+                  value={m}
+                  checked={selectedModules.includes(m)}
+                  onChange={() => toggleModule(m)}
+                />
+                {m}
+              </label>
+            ))
+          )}
+        </div>
+
         <button
           onClick={handleScrape}
           disabled={loading}
@@ -71,7 +125,6 @@ function App() {
           {loading ? "Scraping..." : "Scrape"}
         </button>
 
-        {/* Affichage des scrapers échoués */}
         {failedScrapers.length > 0 && (
           <p className={styles.failedScrapers}>
             ⚠ Scrapers failed: {failedScrapers.join(", ")}
@@ -83,8 +136,8 @@ function App() {
       <div className={styles.content}>
         {loading ? (
           <>
-          <div className={styles.loader}></div>
-          <p>Go get a coffee, scraping all these sources will take a while...</p>
+            <div className={styles.loader}></div>
+            <p>Go get a coffee, scraping these sources will take a while...</p>
           </>
         ) : jobs.length === 0 ? (
           <p className={styles.noJobsMessage}>No jobs scraped yet.</p>

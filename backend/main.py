@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Body
 import json
 import os
 from scrapers import airbus, ariane, cnes, thales
@@ -16,14 +17,13 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,          # Autorise uniquement ces origines
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],            # GET, POST, PUT, DELETE...
-    allow_headers=["*"],            # Autorise tous les headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 JOBS_FILE = "jobs.json"
-
 
 # --- Utils ---
 def load_jobs():
@@ -38,36 +38,68 @@ def save_jobs(jobs):
         json.dump(jobs, f, indent=2, ensure_ascii=False)
 
 
+# Mapping nom -> module scraper
+SCRAPERS = {
+    "airbus": airbus,
+    "ariane": ariane,
+    "cnes": cnes,
+    "thales": thales,
+}
+
+
 # --- Routes ---
 @app.get("/jobs")
 def get_jobs():
     return load_jobs()
 
+@app.get("/modules")
+def get_modules():
+    return list(SCRAPERS.keys())
+
 
 @app.post("/scrape")
 def scrape_jobs():
-    jobs = load_jobs()
+    return _scrape_modules(list(SCRAPERS.keys()))
 
+
+@app.post("/scrape_modules")
+def scrape_selected_modules(modules: list[str] = Body(..., embed=True)):
+    """
+    Exemple de body JSON attendu :
+    {
+        "modules": ["airbus", "thales"]
+    }
+    """
+    return _scrape_modules(modules)
+
+
+# --- Fonction utilitaire commune ---
+def _scrape_modules(modules: list[str]):
+    jobs = load_jobs()
     new_jobs = []
     failed_scrapers = []
 
-    for scraper in [airbus, ariane, cnes, thales]:
+    # Construire un set des liens déjà présents
+    existing_links = {j["link"] for j in jobs}
+
+    for module in modules:
+        scraper = SCRAPERS.get(module)
+        if not scraper:
+            failed_scrapers.append(module)  # module inconnu
+            continue
+
         try:
             site_jobs = scraper.fetch_jobs()
-            # Construire un set des liens déjà présents
-            existing_links = {j["link"] for j in jobs}
-
             for job in site_jobs:
                 if job["link"] not in existing_links:
                     job["new"] = True
                     new_jobs.append(job)
-                    existing_links.add(job["link"])  # important pour éviter les doublons au sein de la même fournée
+                    existing_links.add(job["link"])
                 else:
                     print(f"Doublon trouvé: {job['link']}")
-                    
         except Exception as e:
-            print(f"Erreur scraper {scraper.__name__}: {e}")
-            failed_scrapers.append(scraper.__name__)
+            print(f"Erreur scraper {module}: {e}")
+            failed_scrapers.append(module)
 
     # Marquer les anciens jobs comme non-nouveaux
     for job in jobs:
