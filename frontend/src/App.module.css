@@ -116,3 +116,9 @@
   align-items: center;
   gap: 0.25rem;
 }
+
+.warning {
+  color: #b91c1c;
+  font-weight: 600;
+  text-align: center;
+}

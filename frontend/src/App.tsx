@@ -98,6 +98,8 @@ function App() {
         <SourceToggle />
         <ScraperWarningToggle />
 
+        <p className={styles.warning}>⚠ Scrape all these modules can take a while. You can select specific modules to scrape if you want to save time.</p>
+
         {/* Sélecteur de modules (chargé dynamiquement) */}
         <div className={styles.modulesContainer}>
           {availableModules.length === 0 ? (
