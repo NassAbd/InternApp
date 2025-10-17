@@ -24,9 +24,8 @@ def fetch_jobs():
         a = li.find("a", href=True)
         if not a:
             continue
-
-        title_tag = a.find("span", class_="text-block-base-link")
-        title = title_tag.get_text(strip=True) if title_tag else None
+        
+        title = a.get_text(strip=True)
         if not title:
             raise RuntimeError("Job title missing for a listing")
 
@@ -35,8 +34,15 @@ def fetch_jobs():
             link = BASE_URL + link
 
         # Domaine + localisation + mode (Hybride, Remote, etc.)
-        info_spans = a.select("div.mt-1 span")
-        location = info_spans[2].get_text(strip=True) if len(info_spans) >= 3 else None
+        info_div = li.find("div", class_="mt-1")
+        location = None
+        if info_div:
+            spans = info_div.find_all("span")
+            # Exemple : [ "Communication et Lobbying", "·", "Les Mureaux" ]
+            if len(spans) >= 3:
+                location = spans[2].get_text(strip=True)
+            elif len(spans) >= 1:
+                location = spans[-1].get_text(strip=True)
 
         jobs.append({
             "module": "ariane",
