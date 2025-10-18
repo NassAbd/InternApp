@@ -7,7 +7,7 @@ type Job = {
   location: string;
   link: string;
   new: boolean;
-  module: string; // <-- ajouté
+  module: string;
 };
 
 type Props = {
@@ -17,17 +17,27 @@ type Props = {
 export function JobsTable({ jobs }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedModule, setSelectedModule] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState<string>("");
 
   const itemsPerPage = 10;
 
   // Extraire tous les modules uniques
   const modules = Array.from(new Set(jobs.map((job) => job.module)));
 
-  // Appliquer filtre si un module est sélectionné
-  const filteredJobs =
-    selectedModule === ""
-      ? jobs
-      : jobs.filter((job) => job.module === selectedModule);
+  // 🔍 Filtrer par module + terme de recherche
+  const filteredJobs = jobs.filter((job) => {
+    const matchesModule =
+      selectedModule === "" || job.module === selectedModule;
+
+    const search = searchTerm.trim().toLowerCase();
+    const matchesSearch =
+      search === "" ||
+      Object.values(job).some((value) =>
+        String(value).toLowerCase().includes(search)
+      );
+
+    return matchesModule && matchesSearch;
+  });
 
   const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
 
@@ -40,7 +50,7 @@ export function JobsTable({ jobs }: Props) {
 
   return (
     <div className={styles.container}>
-      {/* FILTRE */}
+      {/* FILTRES */}
       <div className={styles.filterContainer}>
         <label htmlFor="module-filter" className={styles.filterLabel}>
           Module :
@@ -50,7 +60,7 @@ export function JobsTable({ jobs }: Props) {
           value={selectedModule}
           onChange={(e) => {
             setSelectedModule(e.target.value);
-            setCurrentPage(1); // reset pagination au changement de filtre
+            setCurrentPage(1);
           }}
           className={styles.filterSelect}
         >
@@ -61,6 +71,18 @@ export function JobsTable({ jobs }: Props) {
             </option>
           ))}
         </select>
+
+        {/* 🔍 Barre de recherche */}
+        <input
+          type="text"
+          placeholder="Search by title, company, location or link..."
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
+          className={styles.searchInput}
+        />
       </div>
 
       {/* TABLE */}
@@ -77,8 +99,9 @@ export function JobsTable({ jobs }: Props) {
           {displayedJobs.map((job) => (
             <tr
               key={job.link}
-              className={`${styles.tableRow} ${job.new ? styles.tableRowNew : ""
-                }`}
+              className={`${styles.tableRow} ${
+                job.new ? styles.tableRowNew : ""
+              }`}
             >
               <td className={styles.tableCell}>{job.title}</td>
               <td className={styles.tableCell}>{job.company}</td>
@@ -95,6 +118,7 @@ export function JobsTable({ jobs }: Props) {
               </td>
             </tr>
           ))}
+
           {/* Lignes fantômes */}
           {Array.from({ length: emptyRows }).map((_, idx) => (
             <tr key={`empty-${idx}`} style={{ height: "53px" }}>
