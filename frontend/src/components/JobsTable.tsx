@@ -1,4 +1,3 @@
-import { useState } from "react";
 import styles from "./JobsTable.module.css";
 
 type Job = {
@@ -10,43 +9,36 @@ type Job = {
   module: string;
 };
 
-type Props = {
+type JobsData = {
   jobs: Job[];
+  page: number;
+  size: number;
+  total_items: number;
+  total_pages: number;
 };
 
-export function JobsTable({ jobs }: Props) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedModule, setSelectedModule] = useState<string>("");
-  const [searchTerm, setSearchTerm] = useState<string>("");
+type Filters = {
+  page: number;
+  size: number;
+  searchTerm: string;
+  selectedModule: string;
+};
 
-  const itemsPerPage = 10;
+type Props = {
+  jobsData: JobsData;
+  filters: Filters;
+  onFilterChange: (newFilters: Partial<Filters>) => void;
+  availableModules: string[];
+};
 
-  // Extraire tous les modules uniques
-  const modules = Array.from(new Set(jobs.map((job) => job.module)));
-
-  // 🔍 Filtrer par module + terme de recherche
-  const filteredJobs = jobs.filter((job) => {
-    const matchesModule =
-      selectedModule === "" || job.module === selectedModule;
-
-    const search = searchTerm.trim().toLowerCase();
-    const matchesSearch =
-      search === "" ||
-      Object.values(job).some((value) =>
-        String(value).toLowerCase().includes(search)
-      );
-
-    return matchesModule && matchesSearch;
-  });
-
-  const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
-
-  const displayedJobs = filteredJobs.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const emptyRows = itemsPerPage - displayedJobs.length;
+export function JobsTable({
+  jobsData,
+  filters,
+  onFilterChange,
+  availableModules,
+}: Props) {
+  const { jobs: displayedJobs, page, size, total_pages } = jobsData;
+  const emptyRows = size - displayedJobs.length;
 
   return (
     <div className={styles.container}>
@@ -57,15 +49,14 @@ export function JobsTable({ jobs }: Props) {
         </label>
         <select
           id="module-filter"
-          value={selectedModule}
-          onChange={(e) => {
-            setSelectedModule(e.target.value);
-            setCurrentPage(1);
-          }}
+          value={filters.selectedModule}
+          onChange={(e) =>
+            onFilterChange({ selectedModule: e.target.value, page: 1 })
+          }
           className={styles.filterSelect}
         >
           <option value="">All</option>
-          {modules.map((m) => (
+          {availableModules.map((m) => (
             <option key={m} value={m}>
               {m}
             </option>
@@ -76,11 +67,10 @@ export function JobsTable({ jobs }: Props) {
         <input
           type="text"
           placeholder="Search by title, company, location or link..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
+          value={filters.searchTerm}
+          onChange={(e) =>
+            onFilterChange({ searchTerm: e.target.value, page: 1 })
+          }
           className={styles.searchInput}
         />
       </div>
@@ -134,20 +124,20 @@ export function JobsTable({ jobs }: Props) {
       {/* PAGINATION */}
       <div className={styles.paginationContainer}>
         <button
-          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-          disabled={currentPage === 1}
+          onClick={() => onFilterChange({ page: page - 1 })}
+          disabled={page === 1}
           className={styles.paginationButton}
         >
           Previous
         </button>
 
         <span className={styles.paginationInfo}>
-          {currentPage} / {totalPages || 1}
+          {page} / {total_pages || 1}
         </span>
 
         <button
-          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-          disabled={currentPage === totalPages || totalPages === 0}
+          onClick={() => onFilterChange({ page: page + 1 })}
+          disabled={page === total_pages || total_pages === 0}
           className={styles.paginationButton}
         >
           Next

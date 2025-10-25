@@ -3,9 +3,10 @@ import asyncio
 import platform
 import json
 import os
+import math
 
 # --- IMPORTS DE L'APPLICATION (après la config de l'event loop) ---
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, Body, Query
 from fastapi.middleware.cors import CORSMiddleware
 from scrapers import airbus, ariane, cnes, thales # Déplacé
 # -------------------------------------------------------------------
@@ -54,8 +55,50 @@ SCRAPERS = {
 
 # --- Routes ---
 @app.get("/jobs")
-def get_jobs():
-    return load_jobs()
+def get_jobs(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    modules: str = Query(None),
+    search: str = Query(None),
+):
+    all_jobs = load_jobs()
+
+    # 1. Filtrage par modules
+    filtered_jobs = all_jobs
+    if modules:
+        selected_modules = {name.strip().lower() for name in modules.split(",")}
+        filtered_jobs = [
+            job for job in filtered_jobs
+            if job.get("module") and job["module"].lower() in selected_modules
+        ]
+
+    # 2. Filtrage par recherche
+    if search:
+        search_term = search.lower()
+        filtered_jobs = [
+            job for job in filtered_jobs
+            if search_term in job["title"].lower() or \
+               search_term in job["company"].lower() or \
+               search_term in job["location"].lower()
+        ]
+
+    # 3. Pagination
+    total_items = len(filtered_jobs)
+    total_pages = math.ceil(total_items / size)
+
+    start_index = (page - 1) * size
+    end_index = start_index + size
+
+    paginated_jobs = filtered_jobs[start_index:end_index]
+
+    return {
+        "page": page,
+        "size": size,
+        "total_items": total_items,
+        "total_pages": total_pages,
+        "jobs": paginated_jobs,
+    }
+
 
 @app.get("/modules")
 def get_modules():
