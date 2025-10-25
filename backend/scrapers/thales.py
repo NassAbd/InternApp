@@ -62,7 +62,7 @@ def fetch_jobs():
             # Vérifier si le bouton "Suivant" est visible
             next_button = page.query_selector("a.next-btn[aria-label='Voir la page suivante']")
             if next_button and next_button.is_visible():
-                next_button.click()
+                next_button.click(force=True)
                 page.wait_for_timeout(2000)  # attendre un peu que la page charge
             else:
                 break  # plus de pages → fin
