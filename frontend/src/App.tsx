@@ -14,20 +14,26 @@ type Job = {
   new: boolean;
 };
 
-type JobsData = {
+type JobsResponse = {
   jobs: Job[];
   page: number;
   size: number;
   total_items: number;
   total_pages: number;
+  filterable_modules: string[];
 };
 
 function App() {
-  const [jobsData, setJobsData] = useState<JobsData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [jobsData, setJobsData] = useState<JobsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   const [failedScrapers, setFailedScrapers] = useState<string[]>([]);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
-  const [availableModules, setAvailableModules] = useState<string[]>([]);
+  
+  // NOUVEL ÉTAT: Liste complète des modules pour les cases à cocher de scraping (endpoint /modules)
+  const [availableScrapeModules, setAvailableScrapeModules] = useState<string[]>([]);
+  
+  const [filterableModules, setFilterableModules] = useState<string[]>([]);
+  const [hasScraped, setHasScraped] = useState(false);
 
   const [filters, setFilters] = useState({
     page: 1,
@@ -36,18 +42,26 @@ function App() {
     selectedModule: "",
   });
 
-  // Charger la liste des modules
-  const fetchModules = async () => {
+  // NOUVEL ÉTAT: Terme de recherche temporaire, non lié à la requête API automatique.
+  const [pendingSearchTerm, setPendingSearchTerm] = useState(filters.searchTerm);
+
+
+  const isFilterActive = filters.searchTerm !== "" || filters.selectedModule !== "";
+
+  // Nouvelle fonction pour charger TOUS les modules
+  const fetchAvailableScrapeModules = async () => {
     try {
       const res = await fetch("http://localhost:8000/modules");
       const data = await res.json();
-      setAvailableModules(data);
-    } catch {
-      setAvailableModules([]);
+      setAvailableScrapeModules(data);
+    } catch (err) {
+      console.error("Error fetching all scrape modules:", err);
+      setAvailableScrapeModules([]);
     }
   };
 
   const fetchJobs = useCallback(async () => {
+    setLoading(true);
     const params = new URLSearchParams({
       page: String(filters.page),
       size: String(filters.size),
@@ -62,20 +76,59 @@ function App() {
 
     try {
       const res = await fetch(`http://localhost:8000/jobs?${params.toString()}`);
-      const data = await res.json();
+      const data: JobsResponse = await res.json();
       setJobsData(data);
-    } catch {
+      setFilterableModules(data.filterable_modules || []);
+
+      if (data.total_items > 0 && !isFilterActive) {
+        setHasScraped(true);
+      }
+    } catch (err) {
       setJobsData(null);
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-  }, [filters]);
+  }, [filters, isFilterActive]);
 
   useEffect(() => {
     fetchJobs();
-    fetchModules();
   }, [fetchJobs]);
+  
+  // NOUVEL EFFET: Charger tous les modules disponibles au montage
+  useEffect(() => {
+    fetchAvailableScrapeModules();
+  }, []);
+  
+  // Synchronise le terme de recherche temporaire lorsque le filtre réel change (ex: reset).
+  useEffect(() => {
+    setPendingSearchTerm(filters.searchTerm);
+  }, [filters.searchTerm]);
+
 
   const handleFilterChange = (newFilters: Partial<typeof filters>) => {
-    setFilters((prev) => ({ ...prev, ...newFilters }));
+    // Si selectedModule ou page change, on déclenche fetchJobs immédiatement.
+    if (newFilters.selectedModule !== undefined || newFilters.page !== undefined) {
+      setFilters((prev) => ({ 
+        ...prev, 
+        ...newFilters, 
+        // Réinitialiser la page à 1 si le module change, sinon garder la page actuelle.
+        page: newFilters.selectedModule !== undefined ? 1 : (newFilters.page || prev.page)
+      }));
+    } else {
+      setFilters((prev) => ({ ...prev, ...newFilters }));
+    }
+  };
+
+  // Déclenche la recherche par contenu au clic du bouton "Search"
+  const handleSearchClick = () => {
+    // Met à jour le filtre réel, ce qui déclenchera fetchJobs via l'useEffect principal
+    // et réinitialise la page à 1 pour la nouvelle recherche.
+    setFilters((prev) => ({ 
+        ...prev, 
+        searchTerm: pendingSearchTerm,
+        page: 1,
+    }));
   };
 
   // Déclencher le scraping
@@ -104,6 +157,7 @@ function App() {
       }
       setFilters((prev) => ({ ...prev, page: 1 }));
       await fetchJobs();
+      setHasScraped(true);
     } catch (err) {
       console.error(err);
     } finally {
@@ -118,6 +172,9 @@ function App() {
         : [...prev, module]
     );
   };
+
+  const isDatabaseEmpty = !hasScraped && !isFilterActive;
+  const isFilteredButEmpty = jobsData?.total_items === 0 && isFilterActive;
 
   return (
     <div className={styles.container}>
@@ -135,10 +192,11 @@ function App() {
 
         {/* Sélecteur de modules (chargé dynamiquement) */}
         <div className={styles.modulesContainer}>
-          {availableModules.length === 0 ? (
+          {/* UTILISE MAINTENANT availableScrapeModules pour les cases à cocher de scraping */}
+          {availableScrapeModules.length === 0 ? (
             <p>Loading modules...</p>
           ) : (
-            availableModules.map((m) => (
+            availableScrapeModules.map((m) => (
               <label key={m} className={styles.moduleCheckbox}>
                 <input
                   type="checkbox"
@@ -174,16 +232,30 @@ function App() {
             <div className={styles.loader}></div>
             <p>Go get a tea, scraping these sources will take a while...</p>
           </>
-        ) : jobsData.jobs.length === 0 ? (
-          <p className={styles.noJobsMessage}>No jobs scraped yet.</p>
         ) : (
           <div className={styles.jobsContainer}>
+            {/* MISE À JOUR DES PROPS PASSÉES À JobsTable */}
             <JobsTable
               jobsData={jobsData}
               filters={filters}
               onFilterChange={handleFilterChange}
-              availableModules={availableModules}
+              availableModules={filterableModules} // CORRECT: Utilise filterableModules pour le filtre SELECT
+              pendingSearchTerm={pendingSearchTerm} 
+              onPendingSearchChange={setPendingSearchTerm} 
+              onSearchClick={handleSearchClick} 
             />
+
+            {isDatabaseEmpty && (
+                <p className={styles.noJobsMessage}>
+                    No jobs scraped yet. Click 'Scrape'...
+                </p>
+            )}
+
+            {isFilteredButEmpty && (
+                <p className={styles.noJobsMessage}>
+                    No jobs match your current search criteria...
+                </p>
+            )}
           </div>
         )}
       </div>

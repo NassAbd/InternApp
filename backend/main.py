@@ -63,6 +63,8 @@ def get_jobs(
 ):
     all_jobs = load_jobs()
 
+    filterable_modules = sorted(list(set(job.get("module") for job in all_jobs if job.get("module"))))
+
     # 1. Filtrage par modules
     filtered_jobs = all_jobs
     if modules:
@@ -97,6 +99,7 @@ def get_jobs(
         "total_items": total_items,
         "total_pages": total_pages,
         "jobs": paginated_jobs,
+        "filterable_modules": filterable_modules,
     }
 
 
