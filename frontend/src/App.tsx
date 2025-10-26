@@ -14,20 +14,22 @@ type Job = {
   new: boolean;
 };
 
-type JobsData = {
+type JobsResponse = {
   jobs: Job[];
   page: number;
   size: number;
   total_items: number;
   total_pages: number;
+  filterable_modules: string[];
 };
 
 function App() {
-  const [jobsData, setJobsData] = useState<JobsData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [jobsData, setJobsData] = useState<JobsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   const [failedScrapers, setFailedScrapers] = useState<string[]>([]);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
-  const [availableModules, setAvailableModules] = useState<string[]>([]);
+  const [filterableModules, setFilterableModules] = useState<string[]>([]);
+  const [hasScraped, setHasScraped] = useState(false);
 
   const [filters, setFilters] = useState({
     page: 1,
@@ -36,18 +38,10 @@ function App() {
     selectedModule: "",
   });
 
-  // Charger la liste des modules
-  const fetchModules = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/modules");
-      const data = await res.json();
-      setAvailableModules(data);
-    } catch {
-      setAvailableModules([]);
-    }
-  };
+  const isFilterActive = filters.searchTerm !== "" || filters.selectedModule !== "";
 
   const fetchJobs = useCallback(async () => {
+    setLoading(true);
     const params = new URLSearchParams({
       page: String(filters.page),
       size: String(filters.size),
@@ -62,16 +56,23 @@ function App() {
 
     try {
       const res = await fetch(`http://localhost:8000/jobs?${params.toString()}`);
-      const data = await res.json();
+      const data: JobsResponse = await res.json();
       setJobsData(data);
-    } catch {
+      setFilterableModules(data.filterable_modules || []);
+
+      if (data.total_items > 0 && !isFilterActive) {
+        setHasScraped(true);
+      }
+    } catch (err) {
       setJobsData(null);
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-  }, [filters]);
+  }, [filters, isFilterActive]);
 
   useEffect(() => {
     fetchJobs();
-    fetchModules();
   }, [fetchJobs]);
 
   const handleFilterChange = (newFilters: Partial<typeof filters>) => {
@@ -104,6 +105,7 @@ function App() {
       }
       setFilters((prev) => ({ ...prev, page: 1 }));
       await fetchJobs();
+      setHasScraped(true);
     } catch (err) {
       console.error(err);
     } finally {
@@ -118,6 +120,9 @@ function App() {
         : [...prev, module]
     );
   };
+
+  const isDatabaseEmpty = !hasScraped && !isFilterActive;
+  const isFilteredButEmpty = jobsData?.total_items === 0 && isFilterActive;
 
   return (
     <div className={styles.container}>
@@ -135,10 +140,10 @@ function App() {
 
         {/* Sélecteur de modules (chargé dynamiquement) */}
         <div className={styles.modulesContainer}>
-          {availableModules.length === 0 ? (
+          {filterableModules.length === 0 ? (
             <p>Loading modules...</p>
           ) : (
-            availableModules.map((m) => (
+            filterableModules.map((m) => (
               <label key={m} className={styles.moduleCheckbox}>
                 <input
                   type="checkbox"
@@ -174,16 +179,26 @@ function App() {
             <div className={styles.loader}></div>
             <p>Go get a tea, scraping these sources will take a while...</p>
           </>
-        ) : jobsData.jobs.length === 0 ? (
-          <p className={styles.noJobsMessage}>No jobs scraped yet.</p>
         ) : (
           <div className={styles.jobsContainer}>
             <JobsTable
               jobsData={jobsData}
               filters={filters}
               onFilterChange={handleFilterChange}
-              availableModules={availableModules}
+              availableModules={filterableModules}
             />
+
+            {isDatabaseEmpty && (
+                <p className={styles.noJobsMessage}>
+                    No jobs scraped yet. Click 'Scrape'...
+                </p>
+            )}
+
+            {isFilteredButEmpty && (
+                <p className={styles.noJobsMessage}>
+                    No jobs match your current search criteria...
+                </p>
+            )}
           </div>
         )}
       </div>

@@ -35,9 +35,9 @@ export function JobsTable({
   jobsData,
   filters,
   onFilterChange,
-  availableModules,
+  availableModules: filterableModules,
 }: Props) {
-  const { jobs: displayedJobs, page, size, total_pages } = jobsData;
+  const { jobs: displayedJobs, page, size, total_pages, total_items } = jobsData;
   const emptyRows = size - displayedJobs.length;
 
   return (
@@ -45,7 +45,7 @@ export function JobsTable({
       {/* FILTRES */}
       <div className={styles.filterContainer}>
         <label htmlFor="module-filter" className={styles.filterLabel}>
-          Module :
+          Module ({total_items} results):
         </label>
         <select
           id="module-filter"
@@ -56,7 +56,7 @@ export function JobsTable({
           className={styles.filterSelect}
         >
           <option value="">All</option>
-          {availableModules.map((m) => (
+          {filterableModules.map((m) => (
             <option key={m} value={m}>
               {m}
             </option>
@@ -110,7 +110,7 @@ export function JobsTable({
           ))}
 
           {/* Lignes fantômes */}
-          {Array.from({ length: emptyRows }).map((_, idx) => (
+          {total_items > 0 && Array.from({ length: emptyRows }).map((_, idx) => (
             <tr key={`empty-${idx}`} style={{ height: "53px" }}>
               <td className={styles.tableCell}>&nbsp;</td>
               <td className={styles.tableCell}>&nbsp;</td>
