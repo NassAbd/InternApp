@@ -27,23 +27,32 @@ async def fetch_jobs(): # Ajout de 'async'
 
         page = await context.new_page() # Ajout de 'await'
         await page.goto(url, timeout=60000) # Ajout de 'await'
-
-        # Gestion des cookies
-        cookie_btn = await page.query_selector("button[data-ph-at-id='cookie-close-link'] >> text=Accepter") # Ajout de 'await'
-        if cookie_btn:
-            is_visible = await cookie_btn.is_visible()
-        else:
-            is_visible = False
+        
+        # --- Gestion des cookies ---
+        # NOTE: On utilise page.locator pour obtenir un objet qui supporte wait_for.
+        cookie_locator = page.locator("button[data-ph-at-id='cookie-close-link'] >> text=Accepter") 
+        
+        # Vérification si l'élément est présent et visible avec un petit timeout implicite
+        is_visible = await cookie_locator.is_visible() 
             
-        if cookie_btn and is_visible:
-            await cookie_btn.click(force=True) # Ajout de 'await'
+        if is_visible:
+            await cookie_locator.click(force=True) # Clic forcé
+            
+            # CORRECTION: Utilisation de locator.wait_for(state='hidden')
+            try:
+                # On attend que le LOCTOR (qui est le bouton/bannière) devienne masqué
+                await cookie_locator.wait_for(state='hidden', timeout=5000) 
+            except TimeoutError:
+                # Continuer si la bannière n'a pas disparu, mais le clic a eu lieu
+                pass
+        # ---------------------------
 
         while True:
             # Attendre que la liste charge
             try:
                 await page.wait_for_selector("li.jobs-list-item", timeout=10000) # Ajout de 'await'
             except TimeoutError:
-                break  # plus de jobs → fin
+                break 
 
             # Scraper les jobs de la page
             items = await page.query_selector_all("li.jobs-list-item") # Ajout de 'await'
@@ -52,17 +61,17 @@ async def fetch_jobs(): # Ajout de 'async'
                 if not a_tag:
                     continue
 
-                # Récupération du titre et du lien
-                title = await a_tag.get_attribute("data-ph-at-job-title-text") # Ajout de 'await'
+                # Récupération du titre et du lien (utilisation correcte des awaits pour les ElementHandle)
+                title = await a_tag.get_attribute("data-ph-at-job-title-text") 
                 if not title:
-                    title = await a_tag.inner_text() # Ajout de 'await'
+                    title = await a_tag.inner_text() 
                     title = title.strip()
                     
-                link = await a_tag.get_attribute("href") # Ajout de 'await'
+                link = await a_tag.get_attribute("href") 
 
                 # Récupération de la localisation
-                location_el = await item.query_selector("span.workLocation") # Ajout de 'await'
-                location = await location_el.text_content() if location_el else None # Ajout de 'await'
+                location_el = await item.query_selector("span.workLocation") 
+                location = await location_el.text_content() if location_el else None 
                 location = location.strip() if location else None
 
                 jobs.append({
@@ -74,13 +83,18 @@ async def fetch_jobs(): # Ajout de 'async'
                 })
 
             # Vérifier si le bouton "Suivant" est visible
-            next_button = page.query_selector("a.next-btn[aria-label='Voir la page suivante']")
-            if next_button and next_button.is_visible():
-                next_button.click(force=True)
-                page.wait_for_timeout(2000)  # attendre un peu que la page charge
+            # On utilise page.locator pour les mêmes raisons de robustesse
+            next_button_locator = page.locator("a.next-btn[aria-label='Voir la page suivante']")
+            
+            is_visible = await next_button_locator.is_visible()
+            
+            if is_visible:
+                # CORRECTION: click() et wait_for_timeout doivent être awaités
+                await next_button_locator.click(force=True)
+                await page.wait_for_timeout(2000)  # attendre un peu que la page charge
             else:
-                break  # plus de pages → fin
+                break 
 
-        await browser.close() # Ajout de 'await'
+        await browser.close() 
 
     return jobs
