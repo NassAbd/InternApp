@@ -25,19 +25,29 @@ type Filters = {
 };
 
 type Props = {
-  jobsData: JobsData;
+  jobsData: JobsData; 
+  availableModules: string[]; 
   filters: Filters;
   onFilterChange: (newFilters: Partial<Filters>) => void;
-  availableModules: string[];
+  // NOUVELLES PROPS pour la recherche différée (de App.tsx)
+  pendingSearchTerm: string;
+  onPendingSearchChange: (term: string) => void;
+  onSearchClick: () => void;
 };
 
-export function JobsTable({
-  jobsData,
-  filters,
-  onFilterChange,
-  availableModules: filterableModules,
-}: Props) {
-  const { jobs: displayedJobs, page, size, total_pages, total_items } = jobsData;
+export function JobsTable({ jobsData, availableModules, filters, onFilterChange, pendingSearchTerm, onPendingSearchChange, onSearchClick }: Props) {
+  
+  // Utiliser les données de JobsData
+  const { page, size, total_pages, total_items, jobs: displayedJobs } = jobsData;
+  const { selectedModule } = filters;
+
+  // Déclencher le changement de module (déclenche immédiatement l'API via App.tsx)
+  const handleModuleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    // Note: onFilterChange dans App.tsx réinitialise automatiquement la page à 1
+    onFilterChange({ selectedModule: e.target.value });
+  };
+  
+  // Calculer les lignes fantômes pour garder la table stable
   const emptyRows = size - displayedJobs.length;
 
   return (
@@ -49,30 +59,34 @@ export function JobsTable({
         </label>
         <select
           id="module-filter"
-          value={filters.selectedModule}
-          onChange={(e) =>
-            onFilterChange({ selectedModule: e.target.value, page: 1 })
-          }
+          value={selectedModule}
+          onChange={handleModuleChange}
           className={styles.filterSelect}
         >
           <option value="">All</option>
-          {filterableModules.map((m) => (
+          {availableModules.map((m) => (
             <option key={m} value={m}>
               {m}
             </option>
           ))}
         </select>
 
-        {/* 🔍 Barre de recherche */}
+        {/* 🔍 Barre de recherche et bouton de déclenchement */}
         <input
           type="text"
           placeholder="Search by title, company, location or link..."
-          value={filters.searchTerm}
-          onChange={(e) =>
-            onFilterChange({ searchTerm: e.target.value, page: 1 })
-          }
+          value={pendingSearchTerm} // Utilise l'état temporaire
+          onChange={(e) => onPendingSearchChange(e.target.value)} // Met à jour l'état temporaire
           className={styles.searchInput}
         />
+        <button 
+            onClick={onSearchClick} // Déclenche la recherche réelle
+            className={styles.searchButton}
+            // Désactiver si le terme tapé est identique au terme déjà appliqué ou si la recherche est vide
+            disabled={pendingSearchTerm === filters.searchTerm}
+        >
+            Search
+        </button>
       </div>
 
       {/* TABLE */}
@@ -125,7 +139,7 @@ export function JobsTable({
       <div className={styles.paginationContainer}>
         <button
           onClick={() => onFilterChange({ page: page - 1 })}
-          disabled={page === 1}
+          disabled={page <= 1}
           className={styles.paginationButton}
         >
           Previous
@@ -137,7 +151,7 @@ export function JobsTable({
 
         <button
           onClick={() => onFilterChange({ page: page + 1 })}
-          disabled={page === total_pages || total_pages === 0}
+          disabled={page >= total_pages || total_pages === 0}
           className={styles.paginationButton}
         >
           Next
