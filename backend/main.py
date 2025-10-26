@@ -1,9 +1,15 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Body
+# --- IMPORTS DE BASE (nécessaires pour la configuration) ---
+import asyncio
+import platform
 import json
 import os
-from scrapers import airbus, ariane, cnes, thales
+import math
+
+# --- IMPORTS DE L'APPLICATION (après la config de l'event loop) ---
+from fastapi import FastAPI, Body, Query
+from fastapi.middleware.cors import CORSMiddleware
+from scrapers import airbus, ariane, cnes, thales # Déplacé
+# -------------------------------------------------------------------
 
 app = FastAPI()
 
@@ -25,7 +31,7 @@ app.add_middleware(
 
 JOBS_FILE = "jobs.json"
 
-# --- Utils ---
+# --- Utils (Synchrones pour l'I/O de fichier) ---
 def load_jobs():
     if not os.path.exists(JOBS_FILE):
         return []
@@ -49,8 +55,50 @@ SCRAPERS = {
 
 # --- Routes ---
 @app.get("/jobs")
-def get_jobs():
-    return load_jobs()
+def get_jobs(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    modules: str = Query(None),
+    search: str = Query(None),
+):
+    all_jobs = load_jobs()
+
+    # 1. Filtrage par modules
+    filtered_jobs = all_jobs
+    if modules:
+        selected_modules = {name.strip().lower() for name in modules.split(",")}
+        filtered_jobs = [
+            job for job in filtered_jobs
+            if job.get("module") and job["module"].lower() in selected_modules
+        ]
+
+    # 2. Filtrage par recherche
+    if search:
+        search_term = search.lower()
+        filtered_jobs = [
+            job for job in filtered_jobs
+            if search_term in job["title"].lower() or \
+               search_term in job["company"].lower() or \
+               search_term in job["location"].lower()
+        ]
+
+    # 3. Pagination
+    total_items = len(filtered_jobs)
+    total_pages = math.ceil(total_items / size)
+
+    start_index = (page - 1) * size
+    end_index = start_index + size
+
+    paginated_jobs = filtered_jobs[start_index:end_index]
+
+    return {
+        "page": page,
+        "size": size,
+        "total_items": total_items,
+        "total_pages": total_pages,
+        "jobs": paginated_jobs,
+    }
+
 
 @app.get("/modules")
 def get_modules():
@@ -58,38 +106,54 @@ def get_modules():
 
 
 @app.post("/scrape")
-def scrape_jobs():
-    return _scrape_modules(list(SCRAPERS.keys()))
+async def scrape_jobs():  # Route asynchrone
+    return await _scrape_modules(list(SCRAPERS.keys()))
 
 
 @app.post("/scrape_modules")
-def scrape_selected_modules(modules: list[str] = Body(..., embed=True)):
+async def scrape_selected_modules(modules: list[str] = Body(..., embed=True)):  # Route asynchrone
     """
     Exemple de body JSON attendu :
     {
         "modules": ["airbus", "thales"]
     }
     """
-    return _scrape_modules(modules)
+    return await _scrape_modules(modules)
 
 
-# --- Fonction utilitaire commune ---
-def _scrape_modules(modules: list[str]):
+# --- Fonction utilitaire commune ASYNCHRONE ---
+async def _scrape_modules(modules: list[str]):  # Fonction asynchrone
     jobs = load_jobs()
-    new_jobs = []
-    failed_scrapers = []
-
-    # Construire un set des liens déjà présents
     existing_links = {j["link"] for j in jobs}
-
+    
+    tasks = []
+    scraped_modules_names = []
+    
+    # 1. Préparer les tâches asynchrones (Coroutines)
     for module in modules:
         scraper = SCRAPERS.get(module)
-        if not scraper:
-            failed_scrapers.append(module)  # module inconnu
-            continue
+        if scraper and hasattr(scraper, "fetch_jobs"):
+            # Ajouter l'appel de la coroutine (la fonction fetch_jobs)
+            tasks.append(scraper.fetch_jobs())
+            scraped_modules_names.append(module)
+        else:
+            print(f"Module {module} inconnu ou sans fetch_jobs.")
 
-        try:
-            site_jobs = scraper.fetch_jobs()
+    # 2. Exécuter toutes les tâches en parallèle et attendre les résultats
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # 3. Traiter les résultats
+    new_jobs = []
+    failed_scrapers = []
+    
+    for module, result in zip(scraped_modules_names, results):
+        if isinstance(result, Exception):
+            # Le scraper a échoué (exception levée)
+            print(f"Erreur scraper {module}: {result}")
+            failed_scrapers.append(module)
+        else:
+            # Succès : 'result' est site_jobs
+            site_jobs = result
             for job in site_jobs:
                 if job["link"] not in existing_links:
                     job["new"] = True
@@ -97,11 +161,8 @@ def _scrape_modules(modules: list[str]):
                     existing_links.add(job["link"])
                 else:
                     print(f"Doublon trouvé: {job['link']}")
-        except Exception as e:
-            print(f"Erreur scraper {module}: {e}")
-            failed_scrapers.append(module)
 
-    # Marquer les anciens jobs comme non-nouveaux
+    # 4. Finalisation et sauvegarde
     for job in jobs:
         job["new"] = False
 

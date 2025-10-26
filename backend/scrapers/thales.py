@@ -1,11 +1,12 @@
-from playwright.sync_api import sync_playwright, TimeoutError
+from playwright.async_api import async_playwright, TimeoutError # Changement: sync_api -> async_api
 
-def fetch_jobs():
+
+async def fetch_jobs(): # Ajout de 'async'
     url = "https://careers.thalesgroup.com/fr/fr/search-results?keywords=stage"
     jobs = []
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
+    async with async_playwright() as p: # Ajout de 'async'
+        browser = await p.chromium.launch( # Ajout de 'await'
             headless=True,
             args=[
                 "--disable-blink-features=AutomationControlled",
@@ -14,7 +15,7 @@ def fetch_jobs():
             ],
         )
 
-        context = browser.new_context(
+        context = await browser.new_context( # Ajout de 'await'
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -24,32 +25,45 @@ def fetch_jobs():
             locale="fr-FR",
         )
 
-        page = context.new_page()
-        page.goto(url, timeout=60000)
+        page = await context.new_page() # Ajout de 'await'
+        await page.goto(url, timeout=60000) # Ajout de 'await'
 
-        cookie_btn = page.query_selector("button[data-ph-at-id='cookie-close-link'] >> text=Accepter")
-        if cookie_btn and cookie_btn.is_visible():
-            cookie_btn.click()
+        # Gestion des cookies
+        cookie_btn = await page.query_selector("button[data-ph-at-id='cookie-close-link'] >> text=Accepter") # Ajout de 'await'
+        if cookie_btn:
+            is_visible = await cookie_btn.is_visible()
+        else:
+            is_visible = False
+            
+        if cookie_btn and is_visible:
+            await cookie_btn.click(force=True) # Ajout de 'await'
 
         while True:
             # Attendre que la liste charge
             try:
-                page.wait_for_selector("li.jobs-list-item", timeout=10000)
+                await page.wait_for_selector("li.jobs-list-item", timeout=10000) # Ajout de 'await'
             except TimeoutError:
                 break  # plus de jobs → fin
 
             # Scraper les jobs de la page
-            items = page.query_selector_all("li.jobs-list-item")
+            items = await page.query_selector_all("li.jobs-list-item") # Ajout de 'await'
             for item in items:
-                a_tag = item.query_selector("a[data-ph-at-id='job-link']")
+                a_tag = await item.query_selector("a[data-ph-at-id='job-link']") # Ajout de 'await'
                 if not a_tag:
                     continue
 
-                title = a_tag.get_attribute("data-ph-at-job-title-text") or a_tag.inner_text().strip()
-                link = a_tag.get_attribute("href")
+                # Récupération du titre et du lien
+                title = await a_tag.get_attribute("data-ph-at-job-title-text") # Ajout de 'await'
+                if not title:
+                    title = await a_tag.inner_text() # Ajout de 'await'
+                    title = title.strip()
+                    
+                link = await a_tag.get_attribute("href") # Ajout de 'await'
 
-                location_el = item.query_selector("span.workLocation")
-                location = location_el.text_content().strip() if location_el else None
+                # Récupération de la localisation
+                location_el = await item.query_selector("span.workLocation") # Ajout de 'await'
+                location = await location_el.text_content() if location_el else None # Ajout de 'await'
+                location = location.strip() if location else None
 
                 jobs.append({
                     "module": "thales",
@@ -67,6 +81,6 @@ def fetch_jobs():
             else:
                 break  # plus de pages → fin
 
-        browser.close()
+        await browser.close() # Ajout de 'await'
 
     return jobs

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { JobsTable } from "./components/JobsTable";
 import SourceToggle from "./components/SourceToggle";
 import ScraperWarningToggle from "./components/ScraperWarningToggle";
@@ -10,25 +10,31 @@ type Job = {
   title: string;
   location: string;
   link: string;
+  module: string;
+  new: boolean;
+};
+
+type JobsData = {
+  jobs: Job[];
+  page: number;
+  size: number;
+  total_items: number;
+  total_pages: number;
 };
 
 function App() {
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobsData, setJobsData] = useState<JobsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [failedScrapers, setFailedScrapers] = useState<string[]>([]);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [availableModules, setAvailableModules] = useState<string[]>([]);
 
-  // Charger les jobs existants
-  const fetchJobs = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/jobs");
-      const data = await res.json();
-      setJobs(data);
-    } catch {
-      setJobs([]);
-    }
-  };
+  const [filters, setFilters] = useState({
+    page: 1,
+    size: 10,
+    searchTerm: "",
+    selectedModule: "",
+  });
 
   // Charger la liste des modules
   const fetchModules = async () => {
@@ -41,10 +47,36 @@ function App() {
     }
   };
 
+  const fetchJobs = useCallback(async () => {
+    const params = new URLSearchParams({
+      page: String(filters.page),
+      size: String(filters.size),
+    });
+
+    if (filters.selectedModule) {
+      params.append("modules", filters.selectedModule);
+    }
+    if (filters.searchTerm) {
+      params.append("search", filters.searchTerm);
+    }
+
+    try {
+      const res = await fetch(`http://localhost:8000/jobs?${params.toString()}`);
+      const data = await res.json();
+      setJobsData(data);
+    } catch {
+      setJobsData(null);
+    }
+  }, [filters]);
+
   useEffect(() => {
     fetchJobs();
     fetchModules();
-  }, []);
+  }, [fetchJobs]);
+
+  const handleFilterChange = (newFilters: Partial<typeof filters>) => {
+    setFilters((prev) => ({ ...prev, ...newFilters }));
+  };
 
   // Déclencher le scraping
   const handleScrape = async () => {
@@ -70,6 +102,7 @@ function App() {
       if (data.failed_scrapers && data.failed_scrapers.length > 0) {
         setFailedScrapers(data.failed_scrapers);
       }
+      setFilters((prev) => ({ ...prev, page: 1 }));
       await fetchJobs();
     } catch (err) {
       console.error(err);
@@ -136,16 +169,21 @@ function App() {
 
       {/* Content */}
       <div className={styles.content}>
-        {loading ? (
+        {loading || !jobsData ? (
           <>
             <div className={styles.loader}></div>
             <p>Go get a tea, scraping these sources will take a while...</p>
           </>
-        ) : jobs.length === 0 ? (
+        ) : jobsData.jobs.length === 0 ? (
           <p className={styles.noJobsMessage}>No jobs scraped yet.</p>
         ) : (
           <div className={styles.jobsContainer}>
-            <JobsTable jobs={jobs} />
+            <JobsTable
+              jobsData={jobsData}
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              availableModules={availableModules}
+            />
           </div>
         )}
       </div>
