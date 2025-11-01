@@ -1,6 +1,10 @@
-# InternApp
+<h1 align="center">InternApp</h1>
 
-A full‑stack project to scrape internship/job listings from multiple sources and browse them via a React UI.
+<p align="center">
+  <img src="./assets/screenshot.png" alt="InternApp" width="900"/>
+</p>
+
+A full‑stack project to scrape internship listings from multiple sources and browse them via a React UI.
 
 ## Project Structure
 
@@ -26,6 +30,15 @@ InternApp/
 - **Frontend**: `React`, `Vite`, `TypeScript`
 - **Dev/Runtime**: Docker, docker-compose
 
+## Features
+
+- **Multi-Source Scraping**: Scrapes job listings from various aerospace and defense company websites.
+- **Selective Scraping**: Allows users to select specific sources to scrape, saving time.
+- **Job Filtering**: Filter jobs by source module to narrow down the results.
+- **Full-Text Search**: Search for jobs by keywords in the title, company, or location.
+- **New Job Highlighting**: Newly scraped jobs are highlighted in the UI.
+- **Pagination**: Browse through a large number of job listings with ease.
+
 ## Getting Started
 
 ### Option A: Run with Docker (recommended for dev)
@@ -39,7 +52,7 @@ docker-compose up --build
 ```
 
 - Backend: http://localhost:8000
-- Frontend: http://localhost:5174 (proxied to Vite 5173 inside the container)
+- Frontend: http://localhost:5174 (Vite is mapped to 5173 inside the container, but exposed on 5174).
 
 
 ### Option B: Run locally (without Docker)
@@ -77,21 +90,25 @@ Frontend
 Base URL: `http://localhost:8000`
 
 - `GET /jobs`
-  - Returns the content of `backend/jobs.json` (list of scraped jobs).
+  - Returns a paginated, filterable, and searchable list of jobs.
+  - **Query Parameters**:
+    - `page` (int, default: 1): The page number to retrieve.
+    - `size` (int, default: 20): The number of jobs per page.
+    - `modules` (string, optional): A comma-separated list of module names to filter by (e.g., `airbus,thales`).
+    - `search` (string, optional): A search term to filter jobs by title, company, or location.
 
 - `GET /modules`
-  - Returns enabled scraper modules. Example: `["airbus", "ariane", "cnes", "thales"]`.
+  - Returns a list of all available scraper modules. Example: `["airbus", "ariane", "cnes", "thales"]`.
 
 - `POST /scrape`
-  - Runs all scrapers, merges new jobs, sets `new: true` for newly found items, persists to `jobs.json`.
-  - Response: `{ added, total, failed_scrapers }`.
+  - Triggers a scrape of all available modules.
+  - Merges new jobs with existing ones, marks them as `new: true`, and saves to `jobs.json`.
+  - Response: `{ "added": <int>, "total": <int>, "failed_scrapers": [<str>] }`.
 
 - `POST /scrape_modules`
-  - Body (JSON):
-    ```json
-    { "modules": ["airbus", "thales"] }
-    ```
-  - Runs only selected scrapers. Same response shape as `/scrape`.
+  - Triggers a scrape of only the specified modules.
+  - Body (JSON): `{ "modules": ["airbus", "thales"] }`
+  - Same response format as `/scrape`.
 
 Job item shape (example)
 ```json
