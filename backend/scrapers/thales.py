@@ -1,12 +1,12 @@
-from playwright.async_api import async_playwright, TimeoutError # Changement: sync_api -> async_api
+from playwright.async_api import async_playwright, TimeoutError
 
 
-async def fetch_jobs(): # Ajout de 'async'
+async def fetch_jobs():
     url = "https://careers.thalesgroup.com/fr/fr/search-results?keywords=stage"
     jobs = []
 
-    async with async_playwright() as p: # Ajout de 'async'
-        browser = await p.chromium.launch( # Ajout de 'await'
+    async with async_playwright() as p: 
+        browser = await p.chromium.launch( 
             headless=True,
             args=[
                 "--disable-blink-features=AutomationControlled",
@@ -15,7 +15,7 @@ async def fetch_jobs(): # Ajout de 'async'
             ],
         )
 
-        context = await browser.new_context( # Ajout de 'await'
+        context = await browser.new_context( 
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -25,43 +25,40 @@ async def fetch_jobs(): # Ajout de 'async'
             locale="fr-FR",
         )
 
-        page = await context.new_page() # Ajout de 'await'
-        await page.goto(url, timeout=60000) # Ajout de 'await'
+        page = await context.new_page() 
+        await page.goto(url, timeout=60000) 
         
-        # --- Gestion des cookies ---
-        # NOTE: On utilise page.locator pour obtenir un objet qui supporte wait_for.
+        # --- Cookies handling ---
+        # NOTE: We're using locator to get an object that supports wait_for.
         cookie_locator = page.locator("button[data-ph-at-id='cookie-close-link'] >> text=Accepter") 
         
-        # Vérification si l'élément est présent et visible avec un petit timeout implicite
+        # Check if the element is visible and wait for it to be hidden
         is_visible = await cookie_locator.is_visible() 
             
         if is_visible:
-            await cookie_locator.click(force=True) # Clic forcé
+            await cookie_locator.click(force=True)
             
-            # CORRECTION: Utilisation de locator.wait_for(state='hidden')
+            # CORRECTION: use locator.wait_for(state='hidden')
             try:
-                # On attend que le LOCTOR (qui est le bouton/bannière) devienne masqué
                 await cookie_locator.wait_for(state='hidden', timeout=5000) 
             except TimeoutError:
-                # Continuer si la bannière n'a pas disparu, mais le clic a eu lieu
+                # Keep going if the banner doesn't disappear, but the click has happened
                 pass
         # ---------------------------
 
         while True:
-            # Attendre que la liste charge
+            # Wait for the list to load
             try:
-                await page.wait_for_selector("li.jobs-list-item", timeout=10000) # Ajout de 'await'
+                await page.wait_for_selector("li.jobs-list-item", timeout=10000) 
             except TimeoutError:
                 break 
 
-            # Scraper les jobs de la page
-            items = await page.query_selector_all("li.jobs-list-item") # Ajout de 'await'
+            items = await page.query_selector_all("li.jobs-list-item") 
             for item in items:
-                a_tag = await item.query_selector("a[data-ph-at-id='job-link']") # Ajout de 'await'
+                a_tag = await item.query_selector("a[data-ph-at-id='job-link']") 
                 if not a_tag:
                     continue
 
-                # Récupération du titre et du lien (utilisation correcte des awaits pour les ElementHandle)
                 title = await a_tag.get_attribute("data-ph-at-job-title-text") 
                 if not title:
                     title = await a_tag.inner_text() 
@@ -69,7 +66,6 @@ async def fetch_jobs(): # Ajout de 'async'
                     
                 link = await a_tag.get_attribute("href") 
 
-                # Récupération de la localisation
                 location_el = await item.query_selector("span.workLocation") 
                 location = await location_el.text_content() if location_el else None 
                 location = location.strip() if location else None
@@ -82,16 +78,13 @@ async def fetch_jobs(): # Ajout de 'async'
                     "location": location,
                 })
 
-            # Vérifier si le bouton "Suivant" est visible
-            # On utilise page.locator pour les mêmes raisons de robustesse
             next_button_locator = page.locator("a.next-btn[aria-label='Voir la page suivante']")
             
             is_visible = await next_button_locator.is_visible()
             
             if is_visible:
-                # CORRECTION: click() et wait_for_timeout doivent être awaités
                 await next_button_locator.click(force=True)
-                await page.wait_for_timeout(2000)  # attendre un peu que la page charge
+                await page.wait_for_timeout(2000)
             else:
                 break 
 

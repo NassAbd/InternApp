@@ -1,13 +1,13 @@
-from playwright.async_api import async_playwright # Changement: sync_api -> async_api
+from playwright.async_api import async_playwright
 
 
-async def fetch_jobs():  # Ajout de 'async'
+async def fetch_jobs():
     base_url = "https://www.safran-group.com/fr/offres"
     params = "?contracts%5B0%5D=42-stage&job_status%5B0%5D=4028-etudiant&sort=relevance&page="
     jobs = []
 
-    async with async_playwright() as p:  # Ajout de 'async'
-        browser = await p.chromium.launch(  # Ajout de 'await'
+    async with async_playwright() as p:  
+        browser = await p.chromium.launch(  
             headless=True,
             args=[
                 "--disable-blink-features=AutomationControlled",
@@ -16,7 +16,7 @@ async def fetch_jobs():  # Ajout de 'async'
             ],
         )
 
-        context = await browser.new_context(  # Ajout de 'await'
+        context = await browser.new_context(  
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -26,21 +26,19 @@ async def fetch_jobs():  # Ajout de 'async'
             locale="fr-FR",
         )
 
-        page = await context.new_page()  # Ajout de 'await'
+        page = await context.new_page()  
 
         page_num = 0
         while True:
             url = base_url + params + str(page_num)
             print("Fetching page", page_num)
-            await page.goto(url, timeout=60000)  # Ajout de 'await'
+            await page.goto(url, timeout=60000)  
 
             items = None
             try:
-                # attendre au max 10s qu’il y ait potentiellement des offres
-                await page.wait_for_selector(".c-offer-item", timeout=10000)  # Ajout de 'await'
-                items = await page.query_selector_all(".c-offer-item")  # Ajout de 'await'
+                await page.wait_for_selector(".c-offer-item", timeout=10000)  
+                items = await page.query_selector_all(".c-offer-item")  
             except Exception as e:
-                # pas d’items → fin (timeout ou autre erreur)
                 print(f"No items found 1 or timeout on page {page_num}: {e}")
                 break
 
@@ -49,21 +47,21 @@ async def fetch_jobs():  # Ajout de 'async'
                 break
 
             for item in items:
-                title_el = await item.query_selector("a.c-offer-item__title")  # Ajout de 'await'
-                info_spans = await item.query_selector_all(".c-offer-item__infos__item")  # Ajout de 'await'
+                title_el = await item.query_selector("a.c-offer-item__title")  
+                info_spans = await item.query_selector_all(".c-offer-item__infos__item")  
 
                 if not title_el or len(info_spans) < 2:
                     continue
 
-                title = await title_el.inner_text()  # Ajout de 'await'
+                title = await title_el.inner_text()  
                 title = title.strip()
-                link = await title_el.get_attribute("href")  # Ajout de 'await'
+                link = await title_el.get_attribute("href")  
                 if link and link.startswith("/"):
                     link = "https://www.safran-group.com" + link
 
-                company_raw = await info_spans[0].inner_text()  # Ajout de 'await'
+                company_raw = await info_spans[0].inner_text()  
                 company = company_raw.strip()
-                location_raw = await info_spans[1].inner_text()  # Ajout de 'await'
+                location_raw = await info_spans[1].inner_text()  
                 location = location_raw.strip()
 
                 jobs.append({
@@ -74,8 +72,8 @@ async def fetch_jobs():  # Ajout de 'async'
                     "link": link,
                 })
 
-            page_num += 1  # on passe à la page suivante
+            page_num += 1 
 
-        await browser.close()  # Ajout de 'await'
+        await browser.close()  
 
     return jobs

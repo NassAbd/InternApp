@@ -1,12 +1,12 @@
-from playwright.async_api import async_playwright # Changement: sync_api -> async_api
+from playwright.async_api import async_playwright
 
 
-async def fetch_jobs():  # Ajout de 'async'
+async def fetch_jobs():
     url = "https://recrutement.cnes.fr/fr/annonces?contractTypes=3"
     jobs = []
 
-    async with async_playwright() as p:  # Ajout de 'async'
-        browser = await p.chromium.launch(  # Ajout de 'await'
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
             headless=True,
             args=[
                 "--disable-blink-features=AutomationControlled",
@@ -15,7 +15,7 @@ async def fetch_jobs():  # Ajout de 'async'
             ],
         )
 
-        context = await browser.new_context(  # Ajout de 'await'
+        context = await browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -25,32 +25,31 @@ async def fetch_jobs():  # Ajout de 'async'
             locale="fr-FR",
         )
 
-        page = await context.new_page()  # Ajout de 'await'
-        await page.goto(url, timeout=60000)  # Ajout de 'await'
+        page = await context.new_page()
+        await page.goto(url, timeout=60000)
 
-        # attendre que les cartes soient chargées
-        await page.wait_for_selector("div.card.job-ad-card", timeout=10000)  # Ajout de 'await'
+        await page.wait_for_selector("div.card.job-ad-card", timeout=10000)
 
-        cards = await page.query_selector_all("div.card.job-ad-card")  # Ajout de 'await'
+        cards = await page.query_selector_all("div.card.job-ad-card")
 
         for card in cards:
-            link_tag = await card.query_selector("a.job-ad-card__link")  # Ajout de 'await'
+            link_tag = await card.query_selector("a.job-ad-card__link")
             if not link_tag:
                 continue
 
-            link = await link_tag.get_attribute("href")  # Ajout de 'await'
+            link = await link_tag.get_attribute("href")
             if link and link.startswith("/"):
                 link = "https://recrutement.cnes.fr" + link
 
-            title_el = await card.query_selector("h4.job-ad-card__description-title")  # Ajout de 'await'
-            title = await title_el.text_content() if title_el else None  # Ajout de 'await'
+            title_el = await card.query_selector("h4.job-ad-card__description-title")
+            title = await title_el.text_content() if title_el else None
             title = title.strip() if title else None
 
             # Footer : localisation, contrat, domaine
-            footer_items = await card.query_selector_all("ul.job-ad-card__description__footer li")  # Ajout de 'await'
+            footer_items = await card.query_selector_all("ul.job-ad-card__description__footer li")
             location = None
             if len(footer_items) >= 1:
-                location = await footer_items[0].text_content()  # Ajout de 'await'
+                location = await footer_items[0].text_content()
                 location = location.strip()
 
             jobs.append({
@@ -61,6 +60,6 @@ async def fetch_jobs():  # Ajout de 'async'
                 "location": location,
             })
 
-        await browser.close()  # Ajout de 'await'
+        await browser.close()
 
     return jobs

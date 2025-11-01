@@ -1,7 +1,7 @@
-import httpx # Changement: pour les requêtes HTTP asynchrones
+import httpx
 from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright # Changement: sync_api -> async_api
-import asyncio # Nécessaire pour lancer les deux fonctions en parallèle
+from playwright.async_api import async_playwright
+import asyncio
 
 
 BASE_URLS = {
@@ -10,14 +10,13 @@ BASE_URLS = {
 }
 
 
-async def fetch_arianespace_jobs(): # Changement: ajout de 'async'
-    """Scrape les offres sur https://talent.arianespace.com/jobs de manière asynchrone (avec httpx)"""
+async def fetch_arianespace_jobs():
+    """Scrape the offers on https://talent.arianespace.com/jobs asynchronously (with httpx)"""
     url = BASE_URLS["arianespace"]
     
-    # Utilisation de httpx.AsyncClient pour les requêtes asynchrones
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
-            response = await client.get(url) # Ajout de 'await'
+            response = await client.get(url)
             response.raise_for_status()
         except httpx.RequestError as e:
             raise RuntimeError(f"Failed to fetch ArianeSpace jobs page: {e}")
@@ -25,9 +24,6 @@ async def fetch_arianespace_jobs(): # Changement: ajout de 'async'
     soup = BeautifulSoup(response.text, "html.parser")
 
     jobs_container = soup.select_one("#jobs_list_container")
-    if not jobs_container:
-        # Ceci peut se produire si le site est rendu par JS, mais on suppose ici que non
-        return []
 
     jobs = []
     for li in jobs_container.find_all("li"):
@@ -63,18 +59,18 @@ async def fetch_arianespace_jobs(): # Changement: ajout de 'async'
     return jobs
 
 
-async def fetch_arianegroup_jobs(): # Changement: ajout de 'async'
-    """Scrape les offres de stage sur Workday (ArianeGroup) avec Playwright"""
+async def fetch_arianegroup_jobs():
+    """Scrape the offers on Workday (ArianeGroup) asynchronously (with Playwright)"""
     base_url = "https://arianegroup.wd3.myworkdayjobs.com"
     url = BASE_URLS["arianegroup"]
 
     jobs = []
-    async with async_playwright() as p: # Changement: async with
-        browser = await p.chromium.launch( # Ajout de 'await'
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
             headless=True,
             args=["--disable-blink-features=AutomationControlled", "--no-sandbox", "--disable-dev-shm-usage"],
         )
-        context = await browser.new_context( # Ajout de 'await'
+        context = await browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -84,26 +80,26 @@ async def fetch_arianegroup_jobs(): # Changement: ajout de 'async'
             locale="fr-FR",
         )
 
-        page = await context.new_page() # Ajout de 'await'
-        await page.goto(url, timeout=60000) # Ajout de 'await'
+        page = await context.new_page()
+        await page.goto(url, timeout=60000)
 
         while True:
-            await page.wait_for_selector("section[data-automation-id='jobResults'] li", timeout=10000) # Ajout de 'await'
-            items = await page.query_selector_all("section[data-automation-id='jobResults'] li") # Ajout de 'await'
+            await page.wait_for_selector("section[data-automation-id='jobResults'] li", timeout=10000)
+            items = await page.query_selector_all("section[data-automation-id='jobResults'] li")
 
             for item in items:
-                a_tag = await item.query_selector("a[data-automation-id='jobTitle']") # Ajout de 'await'
+                a_tag = await item.query_selector("a[data-automation-id='jobTitle']")
                 if not a_tag:
                     continue
 
-                title = await a_tag.text_content() # Ajout de 'await'
+                title = await a_tag.text_content()
                 title = title.strip()
-                link = await a_tag.get_attribute("href") # Ajout de 'await'
+                link = await a_tag.get_attribute("href")
                 if link and link.startswith("/"):
                     link = base_url + link
 
-                loc_el = await item.query_selector("div[data-automation-id='locations'] dd") # Ajout de 'await'
-                location = await loc_el.text_content() if loc_el else None # Ajout de 'await'
+                loc_el = await item.query_selector("div[data-automation-id='locations'] dd")
+                location = await loc_el.text_content() if loc_el else None
                 location = location.strip() if location else None
 
 
@@ -116,7 +112,7 @@ async def fetch_arianegroup_jobs(): # Changement: ajout de 'async'
                 })
 
             # Pagination
-            next_button = await page.query_selector("button[data-uxi-element-id='next']") # Ajout de 'await'
+            next_button = await page.query_selector("button[data-uxi-element-id='next']")
             
             if next_button:
                 is_enabled = await next_button.is_enabled()
@@ -124,59 +120,44 @@ async def fetch_arianegroup_jobs(): # Changement: ajout de 'async'
                 is_enabled = False
 
             if next_button and is_enabled:
-                await next_button.click() # Ajout de 'await'
-                await page.wait_for_timeout(2000) # Ajout de 'await'
+                await next_button.click()
+                await page.wait_for_timeout(2000)
             else:
                 break
 
-        await browser.close() # Ajout de 'await'
+        await browser.close()
 
     return jobs
 
 
-async def fetch_jobs(): # Changement: ajout de 'async'
-    """Exécute le scraping des 2 sources en parallèle et fusionne les résultats"""
+async def fetch_jobs():
+    """Execute the scraping of the 2 sources in parallel and merge the results"""
     all_jobs = []
     
-    # 1. Préparer les tâches asynchrones
+    # Prepare the asynchronous tasks
     tasks = [
         fetch_arianespace_jobs(),
         fetch_arianegroup_jobs(),
     ]
     
-    # 2. Exécuter les deux scrapers en parallèle
-    # return_exceptions=True permet de continuer si l'un des scrapers échoue
+    # Execute the two scrapers in parallel
+    # return_exceptions=True allows to continue if one of the scrapers fails
     results = await asyncio.gather(*tasks, return_exceptions=True)
     
-    # 3. Traiter les résultats
+    # Process the results
     success = False
     
     for result in results:
         if isinstance(result, Exception):
-            # Afficher l'avertissement et continuer
+            # Display the warning and continue
             print(f"[WARN] Ariane fetch failed: {result}")
         else:
-            # Succès: 'result' est une liste de jobs
+            # Success: 'result' is a list of jobs
             all_jobs.extend(result)
             success = True
 
     if not success:
-        # Si les deux scrapers ont échoué
+        # If both scrapers failed
         raise RuntimeError("No jobs found on either ArianeSpace or ArianeGroup pages")
 
     return all_jobs
-
-
-if __name__ == "__main__":
-    # Pour le run local, il faut utiliser asyncio.run() car la fonction fetch_jobs est maintenant async
-    import time
-    
-    start_time = time.time()
-    try:
-        jobs = asyncio.run(fetch_jobs())
-        print(f"Scraping completed in {time.time() - start_time:.2f} seconds.")
-        print(f"{len(jobs)} jobs found:")
-        for j in jobs[:5]:
-            print(f"- {j['company']} | {j['title']} | {j['location']} | {j['link']}")
-    except RuntimeError as e:
-        print(f"Error during scraping: {e}")
