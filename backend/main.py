@@ -79,9 +79,9 @@ def get_jobs(
         search_term = search.lower()
         filtered_jobs = [
             job for job in filtered_jobs
-            if search_term in job["title"].lower() or \
-               search_term in job["company"].lower() or \
-               search_term in job["location"].lower()
+            if search_term in str(job.get("title", "")).lower() or \
+               search_term in str(job.get("company", "")).lower() or \
+               search_term in str(job.get("location", "")).lower()
         ]
 
     # 3. Pagination
