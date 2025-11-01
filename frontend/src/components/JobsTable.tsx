@@ -29,7 +29,6 @@ type Props = {
   availableModules: string[]; 
   filters: Filters;
   onFilterChange: (newFilters: Partial<Filters>) => void;
-  // NOUVELLES PROPS pour la recherche différée (de App.tsx)
   pendingSearchTerm: string;
   onPendingSearchChange: (term: string) => void;
   onSearchClick: () => void;
@@ -37,22 +36,19 @@ type Props = {
 
 export function JobsTable({ jobsData, availableModules, filters, onFilterChange, pendingSearchTerm, onPendingSearchChange, onSearchClick }: Props) {
   
-  // Utiliser les données de JobsData
   const { page, size, total_pages, total_items, jobs: displayedJobs } = jobsData;
   const { selectedModule } = filters;
 
-  // Déclencher le changement de module (déclenche immédiatement l'API via App.tsx)
   const handleModuleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    // Note: onFilterChange dans App.tsx réinitialise automatiquement la page à 1
     onFilterChange({ selectedModule: e.target.value });
   };
   
-  // Calculer les lignes fantômes pour garder la table stable
+  // Calculate empty rows for table stability
   const emptyRows = size - displayedJobs.length;
 
   return (
     <div className={styles.container}>
-      {/* FILTRES */}
+      {/* FILTERS */}
       <div className={styles.filterContainer}>
         <label htmlFor="module-filter" className={styles.filterLabel}>
           Module ({total_items} results):
@@ -71,18 +67,17 @@ export function JobsTable({ jobsData, availableModules, filters, onFilterChange,
           ))}
         </select>
 
-        {/* 🔍 Barre de recherche et bouton de déclenchement */}
+        {/* Search input and button */}
         <input
           type="text"
           placeholder="Search by title, company, location or link..."
-          value={pendingSearchTerm} // Utilise l'état temporaire
-          onChange={(e) => onPendingSearchChange(e.target.value)} // Met à jour l'état temporaire
+          value={pendingSearchTerm}
+          onChange={(e) => onPendingSearchChange(e.target.value)}
           className={styles.searchInput}
         />
         <button 
-            onClick={onSearchClick} // Déclenche la recherche réelle
+            onClick={onSearchClick}
             className={styles.searchButton}
-            // Désactiver si le terme tapé est identique au terme déjà appliqué ou si la recherche est vide
             disabled={pendingSearchTerm === filters.searchTerm}
         >
             Search
@@ -123,7 +118,7 @@ export function JobsTable({ jobsData, availableModules, filters, onFilterChange,
             </tr>
           ))}
 
-          {/* Lignes fantômes */}
+          {/* Empty rows */}
           {total_items > 0 && Array.from({ length: emptyRows }).map((_, idx) => (
             <tr key={`empty-${idx}`} style={{ height: "53px" }}>
               <td className={styles.tableCell}>&nbsp;</td>

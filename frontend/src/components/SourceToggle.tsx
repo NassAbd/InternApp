@@ -2,7 +2,7 @@ import { useState } from "react";
 import styles from "./SourceToggle.module.css";
 
 export default function SourceToggle() {
-  const [open, setOpen] = useState(false); // fermé par défaut
+  const [open, setOpen] = useState(false);
   const sources = [
     { name: "Airbus", url: "https://ag.wd3.myworkdayjobs.com/fr-FR/Airbus?workerSubType=f5811cef9cb50193723ed01d470a6e15&locationCountry=54c5b6971ffb4bf0b116fe7651ec789a" },
     { name: "Ariane group", url: "https://arianegroup.wd3.myworkdayjobs.com/fr-FR/EXTERNALALL?q=stage+&workerSubType=a18ef726d66501f47d72e293b31c2c27" },

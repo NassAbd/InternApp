@@ -1,5 +1,5 @@
 import { useState } from "react";
-import styles from "./SourceToggle.module.css"; // réutilise les mêmes styles pour cohérence
+import styles from "./SourceToggle.module.css";
 
 export default function ScraperWarningToggle() {
   const [open, setOpen] = useState(false);
