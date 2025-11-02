@@ -13,20 +13,20 @@ InternApp/
 ├─ backend/
 │  ├─ main.py                # FastAPI app with routes
 │  ├─ scrapers/              # Site-specific scrapers (e.g. Ariane)
-│  ├─ jobs.json              # Persisted job results (generated)
-│  ├─ requirements.txt       # Python deps (FastAPI, Playwright, BS4, Requests)
+│  ├─ (jobs.json)            # Persisted job results
+│  ├─ requirements.txt       # Python deps (FastAPI, Playwright, BS4, Requests...)
 │  └─ Dockerfile             # Uvicorn dev server, Playwright base image
 ├─ frontend/
 │  ├─ src/                   # React + Vite + TS
 │  ├─ package.json           # Scripts and deps
 │  └─ Dockerfile             # Vite dev server
-├─ docker-compose.yml        # Orchestrates backend and frontend for dev
+├─ docker-compose.yml        # Orchestrates backend and frontend
 └─ README.md
 ```
 
 ## Tech Stack
 
-- **Backend**: `FastAPI`, `Uvicorn`, `Playwright` (Python), `BeautifulSoup4`, `Requests`
+- **Backend**: `FastAPI`, `Uvicorn`, `Playwright` (Python), `BeautifulSoup4`, `Requests`, `httpx`
 - **Frontend**: `React`, `Vite`, `TypeScript`
 - **Dev/Runtime**: Docker, docker-compose
 
@@ -41,24 +41,24 @@ InternApp/
 
 ## Getting Started
 
-### Option A: Run with Docker (recommended for dev)
+### Option A: Run with Docker (recommended)
 
 Prereqs: Docker Desktop.
 
 ```
-docker compose up --build
-or
 docker-compose up --build
+or
+docker compose up --build
 ```
 
 - Backend: http://localhost:8000
 - Frontend: http://localhost:5174 (Vite is mapped to 5173 inside the container, but exposed on 5174).
 
 
-### Option B: Run locally (without Docker)
+### Option B: Run locally
 
 Backend
-1. Create and activate a Python venv.
+1. (Optional) Create and activate a Python venv.
 2. Install deps:
    ```bash
    pip install -r backend/requirements.txt
@@ -128,10 +128,12 @@ Job item shape (example)
 - The backend stores results in `backend/jobs.json`.
 - Existing links are deduplicated on subsequent scrapes; existing items have `new: false` while newly found items are marked `new: true`.
 
-## Troubleshooting
+## Contributing
 
-- Playwright needs browser binaries: run `python -m playwright install` when running locally without Docker.
+If you want to contribute to this project (add new scrapers, fix bugs, etc.), please open an issue or submit a pull request.
 
 ## License
 
-MIT License
+<p>
+<a href="./LICENSE">MIT License</a>
+</p>
