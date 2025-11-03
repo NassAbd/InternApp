@@ -93,7 +93,7 @@ Base URL: `http://localhost:8000`
   - Returns a paginated, filterable, and searchable list of jobs.
   - **Query Parameters**:
     - `page` (int, default: 1): The page number to retrieve.
-    - `size` (int, default: 20): The number of jobs per page.
+    - `size` (int, default: 10): The number of jobs per page.
     - `modules` (string, optional): A comma-separated list of module names to filter by (e.g., `airbus,thales`).
     - `search` (string, optional): A search term to filter jobs by title, company, or location.
 
@@ -130,7 +130,7 @@ Job item shape (example)
 
 ## Contributing
 
-If you want to contribute to this project (add new scrapers, fix bugs, etc.), please open an issue or submit a pull request.
+If you want to contribute to this project (add new scrapers, fix bugs, etc.), please open an issue or submit a pull request. Read the [scraper maintenance guide](./backend/scraper_maintenance.md) for more information about the scraper implementation.
 
 ## License
 
