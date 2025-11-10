@@ -18,8 +18,7 @@ services:
       dockerfile: Dockerfile
     container_name: frontend
     ports:
-      # Set 5174 to avoid port conflict with other app running on port 5173
-      - "5174:5173"
+      - "5173:5173"
     volumes:
       # Mount the entire frontend directory for live-reloading
       - ./frontend:/app

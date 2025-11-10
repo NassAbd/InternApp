@@ -52,7 +52,7 @@ docker compose up --build
 ```
 
 - Backend: http://localhost:8000
-- Frontend: http://localhost:5174 (Vite is mapped to 5173 inside the container, but exposed on 5174).
+- Frontend: http://localhost:5173
 
 
 ### Option B: Run locally
