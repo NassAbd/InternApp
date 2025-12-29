@@ -1,10 +1,10 @@
 from playwright.async_api import async_playwright, TimeoutError
-from config import THALES_SEARCH_URL
+from config import INTERNSHIP_THALES_SEARCH_URL
 
 
 
 async def fetch_jobs():
-    url = THALES_SEARCH_URL
+    url = INTERNSHIP_THALES_SEARCH_URL
     jobs = []
 
     async with async_playwright() as p: 

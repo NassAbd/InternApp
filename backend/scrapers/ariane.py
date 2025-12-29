@@ -2,12 +2,12 @@ import httpx
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 import asyncio
-from config import ARIANE_BASE_URL, ARIANE_SPACE_SEARCH_URL, ARIANE_GROUP_SEARCH_URL
+from config import ARIANE_BASE_URL, INTERNSHIP_ARIANE_SPACE_SEARCH_URL, INTERNSHIP_ARIANE_GROUP_SEARCH_URL
 
 
 async def fetch_arianespace_jobs():
-    """Scrape the offers on https://talent.arianespace.com/jobs asynchronously (with httpx)"""
-    url = ARIANE_SPACE_SEARCH_URL
+    """Scrape the offers on arianespace website asynchronously (with httpx)"""
+    url = INTERNSHIP_ARIANE_SPACE_SEARCH_URL
     
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
@@ -32,7 +32,7 @@ async def fetch_arianespace_jobs():
 
         link = a["href"]
         if not link.startswith("http"):
-            link = ARIANE_SPACE_SEARCH_URL + link
+            link = INTERNSHIP_ARIANE_SPACE_SEARCH_URL + link
 
         info_div = li.find("div", class_="mt-1")
         location = None
@@ -57,7 +57,7 @@ async def fetch_arianespace_jobs():
 async def fetch_arianegroup_jobs():
     """Scrape the offers on Workday (ArianeGroup) asynchronously (with Playwright)"""
     base_url = ARIANE_BASE_URL
-    url = ARIANE_GROUP_SEARCH_URL
+    url = INTERNSHIP_ARIANE_GROUP_SEARCH_URL
 
     jobs = []
     async with async_playwright() as p:

@@ -1,10 +1,10 @@
 from playwright.async_api import async_playwright
-from config import CNES_SEARCH_URL, CNES_BASE_URL
+from config import INTERNSHIP_CNES_SEARCH_URL, CNES_BASE_URL
 
 
 
 async def fetch_jobs():
-    url = CNES_SEARCH_URL
+    url = INTERNSHIP_CNES_SEARCH_URL
     jobs = []
 
     async with async_playwright() as p:

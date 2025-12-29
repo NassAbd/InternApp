@@ -1,10 +1,10 @@
 from playwright.async_api import async_playwright
-from config import AIRBUS_BASE_URL, AIRBUS_SEARCH_URL
+from config import AIRBUS_BASE_URL, INTERNSHIP_AIRBUS_SEARCH_URL
 
 
 async def fetch_jobs():
     base_url = AIRBUS_BASE_URL
-    url = AIRBUS_SEARCH_URL
+    url = INTERNSHIP_AIRBUS_SEARCH_URL
     jobs = []
 
     async with async_playwright() as p:
