@@ -4,15 +4,36 @@
   }
   
   .sourcesTitle {
-    font-size: 1.25rem;
+    font-size: 0.875rem;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--color-text-secondary);
     user-select: none;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: color 0.2s;
   }
   
+  .sourcesTitle:hover {
+      color: var(--color-accent-primary);
+  }
+
   .sourcesText {
     margin-top: 0.5rem;
-    font-size: 1rem;
-    color: #4b5563;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
   }
-  
+
+  .sourceLink {
+      color: var(--color-accent-primary);
+      text-decoration: none;
+      font-weight: 500;
+  }
+
+  .sourceLink:hover {
+      text-decoration: underline;
+  }

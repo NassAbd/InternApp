@@ -196,8 +196,9 @@ function App() {
                   value={m}
                   checked={selectedModules.includes(m)}
                   onChange={() => toggleModule(m)}
+                  className={styles.hiddenCheckbox}
                 />
-                {m}
+                <span className={styles.moduleLabelText}>{m}</span>
               </label>
             ))
           )}
