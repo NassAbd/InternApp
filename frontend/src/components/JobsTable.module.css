@@ -1,30 +1,94 @@
 .container {
-  overflow: auto;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  padding: 1.5rem;
-  background-color: white;
+  overflow: hidden; /* Contains the border radius */
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-md);
+  padding: 0; /* Remove padding to let table fill the card */
+  background-color: var(--color-bg-card);
+  width: 100%;
 }
 
+/* Filters & Search - Now outside or top of container?
+   Original structure puts them inside .container div.
+   We will style the top part of the container as a "Toolbar".
+*/
 .filterContainer {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg-card);
 }
 
 .filterLabel {
   font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
 }
 
 .filterSelect {
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   border-radius: 0.375rem;
-  padding: 0.5rem 0.75rem;
-  background-color: white;
+  padding: 0.5rem 2rem 0.5rem 0.75rem; /* Extra right padding for custom arrow if we had one */
+  background-color: var(--color-bg-body);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  transition: border-color 0.2s;
+  outline: none;
+  cursor: pointer;
 }
 
+.filterSelect:focus {
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 2px var(--color-accent-light);
+}
+
+.searchInput {
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--color-bg-body);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px; /* Wider search bar */
+  transition: all 0.2s;
+  outline: none;
+}
+
+.searchInput:focus {
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 2px var(--color-accent-light);
+}
+
+.searchButton {
+  padding: 0.5rem 1rem;
+  background-color: white;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.searchButton:hover:not(:disabled) {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-text-light);
+}
+
+.searchButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+/* TABLE */
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -33,98 +97,152 @@
 
 .tableHead {
   text-align: left;
-  font-weight: 600;
-  color: #374151;
-  border-bottom: 1px solid #e5e7eb;
+  background-color: var(--color-bg-hover);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .tableHeadCell {
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
 }
 
 .tableRow {
   transition: background-color 0.15s ease-in-out;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Zebra Striping */
+.tableRow:nth-child(even) {
+  background-color: #fafafa; /* Very faint grey */
 }
 
 .tableRow:hover {
-  background-color: #f9fafb;
+  background-color: var(--color-bg-hover) !important; /* Override zebra on hover */
 }
 
 .tableRowNew {
-  background-color: #f0fdf4;
-}
-
-.tableRowNew:hover {
-  background-color: #dcfce7;
+  /* Subtle highlight for new items - can be a left border or slight bg tint */
+  /* User asked for badges for "New", but row style also helpful. */
 }
 
 .tableCell {
-  padding: 0.75rem 1rem;
+  padding: 1rem 1.5rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  vertical-align: middle;
 }
 
+/* Specific Column Styles */
+.tableCell:nth-child(1) { /* Title */
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.tableCell:nth-child(2) { /* Company */
+  color: var(--color-text-secondary);
+}
+
+/* Link / Action Button */
 .linkCell {
-  color: #3b82f6;
-  text-decoration: underline;
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-accent-primary);
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  text-decoration: none;
+  transition: all 0.2s;
 }
 
+.linkCell:hover {
+  background-color: var(--color-accent-light);
+  text-decoration: none;
+}
+
+/* New Badge - applied to the row?
+   Wait, the "New" property is on the job object.
+   The current TSX logic applies `.tableRowNew` class to the row if job.new is true.
+   The User asked: "Badges: If a job is marked as 'New', style it as a small, rounded badge"
+   This implies I might need to insert a badge element.
+   BUT Constraint: "Do not modify the component logic, props, or HTML structure."
+
+   If I can't add a <span>New</span> inside the cell, I have to rely on the row class.
+   OR I can use a pseudo-element on the title cell if the row has the class?
+   The row has `tableRowNew`. The title is the first cell.
+
+   `.tableRowNew .tableCell:first-child::before { content: "NEW"; ... }`
+   This is a pure CSS way to add a badge!
+*/
+
+.tableRowNew .tableCell:first-child::before {
+  content: "NEW";
+  display: inline-block;
+  margin-right: 0.5rem;
+  padding: 0.125rem 0.375rem;
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text);
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 9999px;
+  vertical-align: middle;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+/* Clean up the row background for new items to be less intrusive if we have a badge */
+.tableRowNew {
+  background-color: white;
+}
+
+
+/* PAGINATION */
 .paginationContainer {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-bg-card);
 }
 
 .paginationButton {
-  padding: 0.5rem 1rem;
-  background-color: #e5e7eb;
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  padding: 0 0.75rem;
+  background-color: white;
+  border: 1px solid var(--color-border);
   border-radius: 0.375rem;
-  cursor: pointer;
-  transition: background-color 0.2s ease-in-out;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  transition: all 0.2s;
 }
 
-.paginationButton:hover {
-  background-color: #d1d5db;
+.paginationButton:hover:not(:disabled) {
+  background-color: var(--color-bg-hover);
+  border-color: var(--color-text-light);
 }
 
 .paginationButton:disabled {
-  opacity: 0.5;
+  background-color: var(--color-bg-body);
+  color: var(--color-text-light);
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .paginationInfo {
-  padding: 0.5rem 0.75rem;
-}
-
-.searchInput {
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  padding: 0.5rem 0.75rem;
-  background-color: white;
-  flex: 1;
-  max-width: 250px;
-}
-
-.searchButton {
-  padding: 0.5rem 1rem;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition: background-color 0.2s ease-in-out;
-}
-
-.searchButton:hover {
-  background-color: #2563eb;
-}
-
-.searchButton:disabled {
-  background-color: #9ca3af;
-  cursor: not-allowed;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin: 0 0.5rem;
+  font-variant-numeric: tabular-nums;
 }
