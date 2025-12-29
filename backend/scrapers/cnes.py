@@ -1,8 +1,10 @@
 from playwright.async_api import async_playwright
+from config import CNES_SEARCH_URL, CNES_BASE_URL
+
 
 
 async def fetch_jobs():
-    url = "https://recrutement.cnes.fr/fr/annonces?contractTypes=3"
+    url = CNES_SEARCH_URL
     jobs = []
 
     async with async_playwright() as p:
@@ -39,7 +41,7 @@ async def fetch_jobs():
 
             link = await link_tag.get_attribute("href")
             if link and link.startswith("/"):
-                link = "https://recrutement.cnes.fr" + link
+                link = CNES_BASE_URL + link
 
             title_el = await card.query_selector("h4.job-ad-card__description-title")
             title = await title_el.text_content() if title_el else None

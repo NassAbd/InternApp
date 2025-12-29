@@ -1,9 +1,10 @@
 from playwright.async_api import async_playwright
+from config import AIRBUS_BASE_URL, AIRBUS_SEARCH_URL
 
 
 async def fetch_jobs():
-    base_url = "https://ag.wd3.myworkdayjobs.com"
-    url = f"{base_url}/fr-FR/Airbus?workerSubType=f5811cef9cb50193723ed01d470a6e15&locationCountry=54c5b6971ffb4bf0b116fe7651ec789a"
+    base_url = AIRBUS_BASE_URL
+    url = AIRBUS_SEARCH_URL
     jobs = []
 
     async with async_playwright() as p:

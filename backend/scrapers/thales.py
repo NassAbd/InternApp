@@ -1,8 +1,10 @@
 from playwright.async_api import async_playwright, TimeoutError
+from config import THALES_SEARCH_URL
+
 
 
 async def fetch_jobs():
-    url = "https://careers.thalesgroup.com/fr/fr/search-results?keywords=stage"
+    url = THALES_SEARCH_URL
     jobs = []
 
     async with async_playwright() as p: 

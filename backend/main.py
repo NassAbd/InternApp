@@ -7,7 +7,7 @@ import math
 # --- APP IMPORTS ---
 from fastapi import FastAPI, Body, Query
 from fastapi.middleware.cors import CORSMiddleware
-from scrapers import airbus, ariane, cnes, thales
+from config import ACTIVE_SCRAPERS, JSON_OUTPUT_PATH
 # -------------------
 
 app = FastAPI()
@@ -15,8 +15,6 @@ app = FastAPI()
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
 ]
 
 app.add_middleware(
@@ -27,7 +25,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-JOBS_FILE = "jobs.json"
+JOBS_FILE = JSON_OUTPUT_PATH
 
 # --- Utils ---
 def load_jobs():
@@ -40,14 +38,6 @@ def load_jobs():
 def save_jobs(jobs):
     with open(JOBS_FILE, "w", encoding="utf-8") as f:
         json.dump(jobs, f, indent=2, ensure_ascii=False)
-
-
-SCRAPERS = {
-    "airbus": airbus,
-    "ariane": ariane,
-    "cnes": cnes,
-    "thales": thales,
-}
 
 
 # --- Routes ---
@@ -102,12 +92,12 @@ def get_jobs(
 
 @app.get("/modules")
 def get_modules():
-    return list(SCRAPERS.keys())
+    return list(ACTIVE_SCRAPERS.keys())
 
 
 @app.post("/scrape")
 async def scrape_jobs():
-    return await _scrape_modules(list(SCRAPERS.keys()))
+    return await _scrape_modules(list(ACTIVE_SCRAPERS.keys()))
 
 
 @app.post("/scrape_modules")
@@ -131,7 +121,7 @@ async def _scrape_modules(modules: list[str]):
     
     # Prepare async tasks
     for module in modules:
-        scraper = SCRAPERS.get(module)
+        scraper = ACTIVE_SCRAPERS.get(module)
         if scraper and hasattr(scraper, "fetch_jobs"):
             # Add coroutine call (fetch_jobs function)
             tasks.append(scraper.fetch_jobs())

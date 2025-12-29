@@ -50,11 +50,11 @@ To add a new scraper for a company (e.g., 'esa'):
         
         return [
             {
-                "module": "esa",
-                "company": "ESA",
-                "title": "...",
-                "link": "...", 
-                "location": "..."
+                "module": "esa", # name used in config.py(ACTIVE_SCRAPERS)
+                "company": "ESA", # company name
+                "title": "...", # job title
+                "link": "...", # job offer url
+                "location": "..." # job offer location
              },
             # ...
         ]
