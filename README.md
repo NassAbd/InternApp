@@ -1,7 +1,7 @@
 <h1 align="center">InternApp</h1>
 
 <p align="center">
-  <img src="./assets/screenshot.png" alt="InternApp" width="900"/>
+  <img src="./assets/screen_rework.png" alt="InternApp" width="900"/>
 </p>
 
 A full‑stack project to scrape internship listings from multiple sources and browse them via a React UI.
@@ -12,9 +12,10 @@ A full‑stack project to scrape internship listings from multiple sources and b
 InternApp/
 ├─ backend/
 │  ├─ main.py                # FastAPI app with routes
-│  ├─ scrapers/              # Site-specific scrapers (e.g. Ariane)
+│  ├─ scrapers/              # Site-specific scrapers (e.g. Ariane, Airbus)
+│  ├─ config.py              # Configuration and scraper registration
 │  ├─ (jobs.json)            # Persisted job results
-│  ├─ requirements.txt       # Python deps (FastAPI, Playwright, BS4, Requests...)
+│  ├─ requirements.txt       # Python deps (FastAPI, Playwright, etc.)
 │  └─ Dockerfile             # Uvicorn dev server, Playwright base image
 ├─ frontend/
 │  ├─ src/                   # React + Vite + TS
@@ -26,18 +27,20 @@ InternApp/
 
 ## Tech Stack
 
-- **Backend**: `FastAPI`, `Uvicorn`, `Playwright` (Python), `BeautifulSoup4`, `Requests`, `httpx`
-- **Frontend**: `React`, `Vite`, `TypeScript`
+- **Backend**: `FastAPI`, `Uvicorn`, `Playwright` (Python), `httpx` (async requests), `BeautifulSoup4`
+- **Frontend**: `React`, `Vite`, `TypeScript`, `CSS Modules`
 - **Dev/Runtime**: Docker, docker-compose
 
 ## Features
 
-- **Multi-Source Scraping**: Scrapes job listings from various aerospace and defense company websites.
+- **Multi-Source Scraping**: Scrapes job listings from various company websites.
 - **Selective Scraping**: Allows users to select specific sources to scrape, saving time.
 - **Job Filtering**: Filter jobs by source module to narrow down the results.
 - **Full-Text Search**: Search for jobs by keywords in the title, company, or location.
-- **New Job Highlighting**: Newly scraped jobs are highlighted in the UI.
+- **New Job Highlighting**: Newly scraped jobs are marked with a "New" badge.
 - **Pagination**: Browse through a large number of job listings with ease.
+- **Feedback Loop**: "Issues and Improvements" toggle to report broken scrapers or suggest features.
+- ⏳**AI-Powered Diagnostics**: Automatically generates detailed error analysis and fix suggestions using Groq LLM when a scraper fails.
 
 ## Getting Started
 
@@ -45,19 +48,21 @@ InternApp/
 
 Prereqs: Docker Desktop.
 
-```
+```bash
 docker-compose up --build
-or
+```
+*or*
+```bash
 docker compose up --build
 ```
 
-- Backend: http://localhost:8000
-- Frontend: http://localhost:5173
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:8000
 
 
 ### Option B: Run locally
 
-Backend
+**Backend**
 1. (Optional) Create and activate a Python venv.
 2. Install deps:
    ```bash
@@ -72,7 +77,7 @@ Backend
    uvicorn backend.main:app --reload --port 8000
    ```
 
-Frontend
+**Frontend**
 1. Install Node 20+.
 2. Install deps:
    ```bash
@@ -90,7 +95,7 @@ Frontend
 Base URL: `http://localhost:8000`
 
 - `GET /jobs`
-  - Returns a paginated, filterable, and searchable list of jobs.
+Returns a paginated, filterable, and searchable list of jobs.
   - **Query Parameters**:
     - `page` (int, default: 1): The page number to retrieve.
     - `size` (int, default: 10): The number of jobs per page.
@@ -98,24 +103,37 @@ Base URL: `http://localhost:8000`
     - `search` (string, optional): A search term to filter jobs by title, company, or location.
 
 - `GET /modules`
-  - Returns a list of all available scraper modules. Example: `["airbus", "ariane", "cnes", "thales"]`.
+Returns a list of available scraper modules (e.g., `["airbus", "ariane", "cnes", "thales"]`).
 
 - `POST /scrape`
-  - Triggers a scrape of all available modules.
+Triggers a scrape of all available modules.
   - Merges new jobs with existing ones, marks them as `new: true`, and saves to `jobs.json`.
-  - Response: `{ "added": <int>, "total": <int>, "failed_scrapers": [<str>] }`.
+  - **Response**:
+  ```json
+  {
+    "added": 5,
+    "total": 120,
+    "failed_scrapers": ["cnes"]
+  }
+  ```
 
 - `POST /scrape_modules`
-  - Triggers a scrape of only the specified modules.
-  - Body (JSON): `{ "modules": ["airbus", "thales"] }`
-  - Same response format as `/scrape`.
+Triggers a scrape of only the specified modules.
+  - **Body** (JSON):
+  ```json
+  {
+    "modules": ["airbus", "thales"]
+  }
+  ```
+
+  - **Response**: Same format as `/scrape`.
 
 Job item shape (example)
 ```json
 {
   "module": "ariane",
   "company": "Ariane",
-  "title": "Stage ...",
+  "title": "Stage - Ingénieur Logiciel",
   "link": "https://...",
   "location": "Meudon",
   "new": true
@@ -130,7 +148,7 @@ Job item shape (example)
 
 ## Contributing
 
-If you want to contribute to this project (add new scrapers, fix bugs, etc.), please open an issue or submit a pull request. Read the [scraper maintenance guide](./backend/scraper_maintenance.md) for more information about the scraper implementation.
+If you want to contribute to this project (add new scrapers, fix bugs, etc.), please open an issue or submit a pull request. Read the [scraper maintenance guide](./backend/scraper_maintenance.md) for implementation details.
 
 ## License
 

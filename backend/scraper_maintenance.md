@@ -3,6 +3,14 @@
 This section explains how to maintain the job scrapers used in the InternApp application,
 with a focus on their **asynchronous implementation** and the expected **return format**.
 
+## Supported Modules
+
+The following scrapers are currently active and supported:
+- **Airbus**: `airbus.py` (Playwright)
+- **Ariane**: `ariane.py` (Hybrid: httpx + Playwright)
+- **CNES**: `cnes.py` (Playwright)
+- **Thales**: `thales.py` (Playwright)
+
 ## Note: testing Playwright without headless mode
 
 * **Local Debugging**:
@@ -14,94 +22,117 @@ with a focus on their **asynchronous implementation** and the expected **return 
         )
         ```
     2.  **Execute**: Run the module locally, a browser window will open, allowing you to see exactly what the scraper sees, where it stops, and if a CAPTCHA or alert blocks the execution.
-    3.  **Restore**: Remise `headless=True` before commiting the code.()
+    3.  **Restore**: Remise `headless=True` before commiting the code.
 
 * **The Docker Challenge**:
     * **Issue**: Running Playwright in non-headless mode (`headless=False`) requires access to a **display server** (an X server, like X11 or Wayland), which is typically absent in this Docker container.
     * **Consequence**: Trying to run a scraper in non-headless mode in a Docker container will **fail** with display-related errors (e.g., `Protocol error (Target.attachToTarget): Target closed.`, `Xlib: connection to "..." refused`).
-    * **Best Practice**: I recommend to test the scraper in non-headless mode on your local machine only.
+    * **Best Practice**: We recommend to test the scraper in non-headless mode on your local machine only.
 
 ## Adding a New Scraper
 
 To add a new scraper for a company (e.g., 'esa'):
-* **Create the Module**: Create a new Python file named `esa.py` inside the `scrapers/` directory.
-* **Implement `async def fetch_jobs()`**: Implement the primary scraping function as an **asynchronous coroutine** named `fetch_jobs()`. This is crucial because the main application uses `asyncio.gather` to run all scrapers concurrently.
-* **Handle Errors**: Use `try...except` blocks within your `fetch_jobs()` function to handle potential network, parsing, or timeout errors (e.g., `httpx.RequestError` or `PlaywrightTimeoutError`). If a fatal error occurs, **raise an exception** (`RuntimeError`, etc.). The main script (`_scrape_modules`) will catch this and report the scraper as failed, ensuring the entire scraping run doesn't halt.
-* **Return Format**: The function **must** return a list of job dictionaries, where each dictionary adheres to the following structure:
+1. **Create the Module**: Create a new Python file named `esa.py` inside the `backend/scrapers/` directory.
+
+2. **Implement `async def fetch_jobs()`**: Implement the primary scraping function as an **asynchronous coroutine**. Most active scrapers use `playwright.async_api` to handle dynamic content.
+
+3. **Handle Errors**: Use `try...except` blocks within your `fetch_jobs()` function to handle potential network, parsing, or timeout errors (e.g., `PlaywrightTimeoutError`). If a fatal error occurs, **raise an exception** (`RuntimeError`, etc.). The main script (`_scrape_modules`) will catch this and report the scraper as failed, ensuring the entire scraping run doesn't halt.
+
+4. **Return Format**: The function **must** return a list of job dictionaries, where each dictionary adheres to the following structure:
 
 | Key | Type | Description |
 | :--- | :--- | :--- |
-| **module** | `str` | The name used in `SCRAPERS` (e.g., "esa"). **Required** for filtering. |
+| **module** | `str` | The name used in `config.py` (e.g., "esa"). **Required** for filtering. |
 | **company** | `str` | The display name of the company (e.g., "ESA"). |
 | **title** | `str` | The job title (e.g., "Software Engineer Intern"). |
 | **link** | `str` | The full, unique URL to the job offer. **Required** for deduplication. |
 | **location** | `str` | The job location (e.g., "Paris"). |
 
-**Example `esa.py` Structure:**
+**Example `esa.py` Structure (Playwright Pattern):**
 ```python
     # esa.py
-    import httpx 
+    from playwright.async_api import async_playwright
     
     async def fetch_jobs():
-        # Use asynchronous libraries (httpx, playwright.async_api, etc.)
-        async with httpx.AsyncClient() as client:
-            response = await client.get("...")
-            # ... parsing logic ...
+        rl = "https://jobs.esa.int/..."
+    jobs = []
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=True,
+            args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
+        )
+        context = await browser.new_context()
+        page = await context.new_page()
         
-        return [
-            {
-                "module": "esa", # name used in config.py(ACTIVE_SCRAPERS)
-                "company": "ESA", # company name
-                "title": "...", # job title
-                "link": "...", # job offer url
-                "location": "..." # job offer location
-             },
-            # ...
-        ]
+        try:
+            await page.goto(url, timeout=60000)
+            await page.wait_for_selector(".job-item", timeout=10000)
+            
+            items = await page.query_selector_all(".job-item")
+            for item in items:
+                title = await item.inner_text()
+                # ... extract other fields ...
+        
+                obs.append({
+                    "module": "esa",
+                    "company": "ESA",
+                    "title": title,
+                    "link": "...",
+                    "location": "..."
+                })
+        except Exception as e:
+            print(f"Error scraping ESA: {e}")
+            raise e
+        finally:
+            await browser.close()
+
+    return jobs
 ```
 
 ## Enabling the New Scraper
 
 Once your scraper module is implemented and tested:
-* **Import the Module**: Add an import statement to the `APP IMPORTS` section (in alphabetical order) at the top of the `main.py` file.
+* **Register the Scraper**: Add an import statement and register it in `backend/config.py`.
     ```python
-    # ...
-    from scrapers import airbus, ariane, cnes, **esa**, thales # <-- Add your new import here
-    # -------------------
-    ```
-* **Register the Scraper**: Add the new scraper module to the `SCRAPERS` dictionary (in alphabetical order). The key will be used for API calls (`/modules`, `/scrape_modules`) and the `module` field in the job data.
-    ```python
-    SCRAPERS = {
-        # ... existing scrapers
+    # backend/config.py
+    from scrapers import airbus, ariane, cnes, thales, esa  # <-- Add your new import
+    
+    ACTIVE_SCRAPERS = {
+        # ...
         "esa": esa, # <-- Add your module here
-        # ... existing scrapers
     }
     ```
 
 ## Frontend Integration
 
-Once the scraper is enabled, the frontend will automatically display the checkbox for the new scraper in the UI. All you have to do is to add the new scraper url to the `sources` array in the `frontend/src/components/SourceToggle.tsx` file.
+The frontend is designed to be dynamic:
+
+*   **Scraping Checkboxes**: The list of modules to scrape (shown as pills/checkboxes in the UI) is **automatically generated** based on the `ACTIVE_SCRAPERS` list in the backend. You do **not** need to update frontend code to enable selective scraping for your new module.
+*   **Source Links**: To add the direct link to the company's career page in the "Scrapers Sources" dropdown (header), you **must manually update** `frontend/src/components/SourceToggle.tsx`:
 
 ```tsx
     // SourceToggle.tsx
     const sources = [
-        { name: "Airbus", url: "https://ag.wd3.myworkdayjobs.com/fr-FR/Airbus?workerSubType=f5811cef9cb50193723ed01d470a6e15&locationCountry=54c5b6971ffb4bf0b116fe7651ec789a" },
-        { name: "Ariane group", url: "https://arianegroup.wd3.myworkdayjobs.com/fr-FR/EXTERNALALL?q=stage+&workerSubType=a18ef726d66501f47d72e293b31c2c27" },
-        { name: "Ariane talent", url: "https://talent.arianespace.com/jobs" },
-        { name: "CNES", url: "https://recrutement.cnes.fr/fr/annonces?contractTypes=3" },
-        // Here add your new scraper url
-        **{ name: "ESA", url: "https://recrutement.cnes.fr/fr/annonces?contractTypes=3" },**
-        { name: "Thales", url: "https://careers.thalesgroup.com/fr/fr/search-results?keywords=stage" },
+        // ...
+        { name: "ESA", url: "https://jobs.esa.int/..." },
     ];
 ```
+
+## Error Handling
+
+If a scraper fails during execution (raises an exception):
+1.  The backend catches the error in `_scrape_modules`.
+2.  The module name is added to the `failed_scrapers` list in the API response.
+3.  The Frontend displays a warning message: "⚠ Scrapers failed: [module_name]" to inform the user.
 
 ## Maintaining Existing Scrapers
 
 Scrapers can break because websites change their structure (HTML, CSS selectors...).
 
 * **Diagnosis**:
-    * When running a scrape (`/scrape` or `/scrape_modules`), check the response's `failed_scrapers` list. This indicates which module raised an exception.
-    * Examine the logs/console output for the specific error message printed by `_scrape_modules` (e.g., "Error scraper airbus: PlaywrightTimeoutError...").
+    * Check the response's `failed_scrapers` list after a scrape.
+    * Examine the logs/console output for the specific error message (e.g., "PlaywrightTimeoutError").
 
 * **Common Causes and Fixes**:
     1.  **Selector Changes**: The most frequent issue. A website changes a `div` class.
@@ -113,9 +144,7 @@ Scrapers can break because websites change their structure (HTML, CSS selectors.
 
 ## Merging Multiple Sources (Advanced)
 
-If a company (see "ariane" for example) requires scraping *multiple* sub-sites, the approach is:
-1.  Define separate `async` functions for each sub-site (`fetch_arianespace_jobs`, `fetch_arianegroup_jobs`).
-2.  Implement the main `async def fetch_jobs()` function in the module (`ariane.py`) to:
-    * Use `await **asyncio.gather**(*tasks, return_exceptions=True)` to run sub-scrapers in parallel.
-    * Process the `results` list, extending the final job list only with successful results.
-    * **Raise a final exception** only if *all* sub-scrapers failed, ensuring partial results are returned if possible.
+If a company (e.g., "ariane") requires scraping *multiple* sub-sites:
+1.  Define separate `async` functions for each sub-site (e.g., `fetch_arianespace_jobs`, `fetch_arianegroup_jobs`).
+2.  Implement the main `async def fetch_jobs()` function to use `asyncio.gather(*tasks, return_exceptions=True)` to run sub-scrapers in parallel.
+3.  Merge the results and handle partial failures gracefully (see `backend/scrapers/ariane.py` for a reference implementation).
