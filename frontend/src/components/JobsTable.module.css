@@ -1,9 +1,11 @@
 .container {
-  overflow: hidden; /* Contains the border radius */
+  overflow: hidden;
+  /* Contains the border radius */
   border: 1px solid var(--color-border);
   border-radius: 0.75rem;
   box-shadow: var(--shadow-md);
-  padding: 0; /* Remove padding to let table fill the card */
+  padding: 0;
+  /* Remove padding to let table fill the card */
   background-color: var(--color-bg-card);
   width: 100%;
 }
@@ -31,7 +33,8 @@
 .filterSelect {
   border: 1px solid var(--color-border);
   border-radius: 0.375rem;
-  padding: 0.5rem 2rem 0.5rem 0.75rem; /* Extra right padding for custom arrow if we had one */
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  /* Extra right padding for custom arrow if we had one */
   background-color: var(--color-bg-body);
   color: var(--color-text-primary);
   font-size: 0.875rem;
@@ -54,7 +57,8 @@
   font-size: 0.875rem;
   flex: 1;
   min-width: 200px;
-  max-width: 400px; /* Wider search bar */
+  max-width: 400px;
+  /* Wider search bar */
   transition: all 0.2s;
   outline: none;
 }
@@ -117,11 +121,13 @@
 
 /* Zebra Striping */
 .tableRow:nth-child(even) {
-  background-color: #fafafa; /* Very faint grey */
+  background-color: #fafafa;
+  /* Very faint grey */
 }
 
 .tableRow:hover {
-  background-color: var(--color-bg-hover) !important; /* Override zebra on hover */
+  background-color: var(--color-bg-hover) !important;
+  /* Override zebra on hover */
 }
 
 .tableRowNew {
@@ -140,12 +146,14 @@
 }
 
 /* Specific Column Styles */
-.tableCell:nth-child(1) { /* Title */
+.tableCell:nth-child(1) {
+  /* Title */
   font-weight: 500;
   color: var(--color-text-primary);
 }
 
-.tableCell:nth-child(2) { /* Company */
+.tableCell:nth-child(2) {
+  /* Company */
   color: var(--color-text-secondary);
 }
 
@@ -200,6 +208,88 @@
 /* Clean up the row background for new items to be less intrusive if we have a badge */
 .tableRowNew {
   background-color: white;
+}
+
+/* High-scoring job rows */
+.tableRowHighScore {
+  border-left: 4px solid var(--color-accent-primary);
+}
+
+/* Title container for tags */
+.titleContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.titleText {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+/* Tags styling */
+.tagsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.125rem 0.375rem;
+  background-color: #f1f5f9;
+  color: #475569;
+  font-size: 0.65rem;
+  font-weight: 500;
+  border-radius: 0.25rem;
+  border: 1px solid #e2e8f0;
+}
+
+.tagMatching {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  border-color: #3b82f6;
+  font-weight: 600;
+}
+
+.tagMore {
+  display: inline-block;
+  padding: 0.125rem 0.375rem;
+  background-color: #f8fafc;
+  color: #64748b;
+  font-size: 0.65rem;
+  font-weight: 500;
+  border-radius: 0.25rem;
+  border: 1px solid #e2e8f0;
+}
+
+/* Match score badges */
+.matchScore {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  text-align: center;
+  min-width: 2rem;
+}
+
+.matchScoreHigh {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #22c55e;
+}
+
+.matchScoreMedium {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+}
+
+.matchScoreLow {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #94a3b8;
 }
 
 

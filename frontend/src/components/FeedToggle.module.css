@@ -1,0 +1,56 @@
+.container {
+    margin-bottom: 1rem;
+}
+
+.toggleGroup {
+    display: flex;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #f8fafc;
+    width: fit-content;
+}
+
+.toggleButton {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background-color: transparent;
+    color: #64748b;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-right: 1px solid #e2e8f0;
+}
+
+.toggleButton:last-child {
+    border-right: none;
+}
+
+.toggleButton:hover {
+    background-color: #e2e8f0;
+    color: #475569;
+}
+
+.toggleButton.active {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.toggleButton.active:hover {
+    background-color: #2563eb;
+}
+
+.noResultsMessage {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #fef3c7;
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    color: #92400e;
+}
+
+.noResultsMessage p {
+    margin: 0;
+    font-size: 0.875rem;
+}

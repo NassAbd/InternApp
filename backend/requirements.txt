@@ -4,3 +4,5 @@ playwright
 beautifulsoup4
 requests
 httpx
+PyPDF2
+python-multipart
