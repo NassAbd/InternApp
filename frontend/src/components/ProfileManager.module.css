@@ -138,6 +138,10 @@
     border: 1px solid #e0e0e0;
     border-radius: 8px;
     background-color: #fafafa;
+    width: 100%;
+    box-sizing: border-box;
+    flex-basis: auto;
+    /* Prevent flex shrinking */
 }
 
 .sectionTitle {
@@ -156,20 +160,29 @@
 /* Tags Section */
 .tagsContainer {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 12px;
     margin-bottom: 15px;
+    min-height: 140px;
+    /* Increased fixed height to accommodate all categories */
+    align-content: start;
+    padding: 8px;
+    /* Add padding to prevent edge clipping */
 }
 
 .tagLabel {
     display: flex;
     align-items: center;
     cursor: pointer;
-    padding: 10px 12px;
+    padding: 12px 14px;
     background: white;
     border: 2px solid #e0e0e0;
     border-radius: 6px;
     transition: all 0.2s;
+    height: 52px;
+    /* Fixed height for absolute consistency */
+    box-sizing: border-box;
+    justify-content: flex-start;
 }
 
 .tagLabel:hover {
@@ -209,11 +222,13 @@
 .locationInput,
 .apiKeyInput {
     width: 100%;
+    max-width: 100%;
     padding: 12px;
     border: 2px solid #e0e0e0;
     border-radius: 6px;
     font-size: 14px;
     transition: border-color 0.2s;
+    box-sizing: border-box;
 }
 
 .locationInput:focus,
@@ -248,6 +263,7 @@
     cursor: pointer;
     transition: all 0.2s;
     min-width: 120px;
+    position: relative;
 }
 
 .saveButton {
@@ -262,6 +278,23 @@
 .saveButton:disabled {
     background-color: #ccc;
     cursor: not-allowed;
+}
+
+/* Visual indicator for unsaved changes */
+.saveButton.hasChanges {
+    background-color: #28a745;
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.2);
+}
+
+.saveButton.hasChanges:hover:not(:disabled) {
+    background-color: #218838;
+}
+
+.changeIndicator {
+    margin-left: 4px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #fff;
 }
 
 .resetButton {
@@ -283,10 +316,25 @@
     .container {
         margin: 10px;
         padding: 15px;
+        max-width: calc(100vw - 20px);
+        box-sizing: border-box;
     }
 
     .tagsContainer {
         grid-template-columns: 1fr;
+        min-height: 320px;
+        /* Adjust for single column layout */
+        padding: 4px;
+    }
+
+    .tagLabel {
+        height: 48px;
+        /* Slightly smaller on mobile */
+        padding: 10px 12px;
+    }
+
+    .section {
+        padding: 15px;
     }
 
     .actions {
@@ -296,5 +344,11 @@
     .saveButton,
     .resetButton {
         width: 100%;
+    }
+
+    .locationInput,
+    .apiKeyInput {
+        font-size: 16px;
+        /* Prevent zoom on iOS */
     }
 }

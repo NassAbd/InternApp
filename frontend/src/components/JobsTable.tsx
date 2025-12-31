@@ -1,3 +1,4 @@
+import { useState } from "react";
 import styles from "./JobsTable.module.css";
 
 type Job = {
@@ -38,6 +39,48 @@ type Props = {
   isPersonalizedFeed?: boolean;
 };
 
+// Tooltip component for job titles
+const TitleTooltip = ({ title, children }: { title: string; children: React.ReactNode }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltipPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.top - 10
+    });
+    setShowTooltip(true);
+  };
+
+  const handleMouseLeave = () => {
+    setShowTooltip(false);
+  };
+
+  return (
+    <div
+      className={styles.tooltipContainer}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {children}
+      {showTooltip && (
+        <div
+          className={styles.tooltip}
+          style={{
+            position: 'fixed',
+            left: tooltipPosition.x,
+            top: tooltipPosition.y,
+            transform: 'translateX(-50%) translateY(-100%)'
+          }}
+        >
+          {title}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export function JobsTable({ jobsData, availableModules, filters, onFilterChange, pendingSearchTerm, onPendingSearchChange, onSearchClick, isPersonalizedFeed = false }: Props) {
 
   const { page, size, total_pages, total_items, jobs: displayedJobs } = jobsData;
@@ -56,7 +99,7 @@ export function JobsTable({ jobsData, availableModules, filters, onFilterChange,
 
     return (
       <div className={styles.tagsContainer}>
-        {job.tags.slice(0, 3).map((tag) => {
+        {job.tags.map((tag) => {
           const isMatching = isPersonalizedFeed && job.matching_tags?.includes(tag);
           return (
             <span
@@ -67,9 +110,6 @@ export function JobsTable({ jobsData, availableModules, filters, onFilterChange,
             </span>
           );
         })}
-        {job.tags.length > 3 && (
-          <span className={styles.tagMore}>+{job.tags.length - 3}</span>
-        )}
       </div>
     );
   };
@@ -135,7 +175,9 @@ export function JobsTable({ jobsData, availableModules, filters, onFilterChange,
             >
               <td className={styles.tableCell}>
                 <div className={styles.titleContainer}>
-                  <div className={styles.titleText}>{job.title}</div>
+                  <TitleTooltip title={job.title}>
+                    <div className={styles.titleText}>{job.title}</div>
+                  </TitleTooltip>
                   {renderTags(job)}
                 </div>
               </td>

@@ -172,12 +172,14 @@
 /* API Key Input */
 .apiKeyInput {
     width: 100%;
+    max-width: 100%;
     padding: 12px;
     border: 2px solid #e0e0e0;
     border-radius: 6px;
     font-size: 14px;
     transition: border-color 0.2s;
     margin-bottom: 8px;
+    box-sizing: border-box;
 }
 
 .apiKeyInput:focus {

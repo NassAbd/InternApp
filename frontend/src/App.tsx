@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { JobsTable, FeedToggle, ProfileManager, CVUploader } from "./components";
 import SourceToggle from "./components/SourceToggle";
 import ScraperWarningToggle from "./components/ScraperWarningToggle";
+import NotificationContainer from "./components/NotificationContainer";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import styles from "./App.module.css";
 import type { FeedType } from "./components/FeedToggle";
 
@@ -30,6 +32,7 @@ type JobsResponse = {
 function App() {
   const [jobsData, setJobsData] = useState<JobsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingState, setLoadingState] = useState<'idle' | 'scraping' | 'fetching' | 'analyzing'>('idle');
   const [failedScrapers, setFailedScrapers] = useState<string[]>([]);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [selectedFeed, setSelectedFeed] = useState<FeedType>("all");
@@ -70,6 +73,7 @@ function App() {
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
+    setLoadingState('fetching');
     const params = new URLSearchParams({
       page: String(filters.page),
       size: String(filters.size),
@@ -100,6 +104,7 @@ function App() {
       console.error(err);
     } finally {
       setLoading(false);
+      setLoadingState('idle');
     }
   }, [filters, isFilterActive, selectedFeed]);
 
@@ -148,6 +153,7 @@ function App() {
 
   const handleScrape = async () => {
     setLoading(true);
+    setLoadingState('scraping');
     setFailedScrapers([]);
     try {
       const endpoint =
@@ -176,6 +182,7 @@ function App() {
       console.error(err);
     } finally {
       setLoading(false);
+      setLoadingState('idle');
     }
   };
 
@@ -197,6 +204,23 @@ function App() {
     if (selectedFeed === "for-you") {
       fetchJobs();
     }
+  };
+
+  // Handle profile update success
+  const handleProfileUpdate = () => {
+    // Refresh jobs if we're on the personalized feed
+    if (selectedFeed === "for-you") {
+      fetchJobs();
+    }
+  };
+
+  // Handle CV analysis state
+  const handleCVAnalysisStart = () => {
+    setLoadingState('analyzing');
+  };
+
+  const handleCVAnalysisEnd = () => {
+    setLoadingState('idle');
   };
 
   // Handle overlay close with ESC key
@@ -230,135 +254,156 @@ function App() {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Internships</h1>
-        <p className={styles.subtitle}>
-          Scrapes internship listings, highlights newly published offers, and makes them easy to explore.
-        </p>
+    <NotificationProvider>
+      <div className={styles.container}>
+        <NotificationContainer />
 
-        <SourceToggle />
-        <ScraperWarningToggle />
+        <div className={styles.header}>
+          <h1 className={styles.title}>Internships</h1>
+          <p className={styles.subtitle}>
+            Scrapes internship listings, highlights newly published offers, and makes them easy to explore.
+          </p>
 
-        <p className={styles.warning}>⚠ Scrape all these modules can take a while. You can select specific modules to scrape if you want to save time.</p>
+          <SourceToggle />
+          <ScraperWarningToggle />
 
-        <div className={styles.modulesContainer}>
-          {availableScrapeModules.length === 0 ? (
-            <p>Loading modules...</p>
-          ) : (
-            availableScrapeModules.map((m) => (
-              <label key={m} className={styles.moduleCheckbox}>
-                <input
-                  type="checkbox"
-                  value={m}
-                  checked={selectedModules.includes(m)}
-                  onChange={() => toggleModule(m)}
-                  className={styles.hiddenCheckbox}
-                />
-                <span className={styles.moduleLabelText}>{m}</span>
-              </label>
-            ))
+          <p className={styles.warning}>⚠ Scrape all these modules can take a while. You can select specific modules to scrape if you want to save time.</p>
+
+          <div className={styles.modulesContainer}>
+            {availableScrapeModules.length === 0 ? (
+              <p>Loading modules...</p>
+            ) : (
+              availableScrapeModules.map((m) => (
+                <label key={m} className={styles.moduleCheckbox}>
+                  <input
+                    type="checkbox"
+                    value={m}
+                    checked={selectedModules.includes(m)}
+                    onChange={() => toggleModule(m)}
+                    className={styles.hiddenCheckbox}
+                  />
+                  <span className={styles.moduleLabelText}>{m}</span>
+                </label>
+              ))
+            )}
+          </div>
+
+          <button
+            onClick={handleScrape}
+            disabled={loading}
+            className={styles.scrapeButton}
+          >
+            {loadingState === 'scraping' ? "Scraping..." : "Scrape"}
+          </button>
+
+          {/* Profile Management Buttons */}
+          <div className={styles.profileButtons}>
+            <button
+              onClick={() => setShowProfileManager(true)}
+              className={styles.profileButton}
+            >
+              Manage Profile
+            </button>
+            <button
+              onClick={() => setShowCVUploader(true)}
+              className={styles.cvButton}
+            >
+              Upload CV
+            </button>
+          </div>
+
+          {failedScrapers.length > 0 && (
+            <p className={styles.failedScrapers}>
+              ⚠ Scrapers failed: {failedScrapers.join(", ")}
+            </p>
           )}
         </div>
 
-        <button
-          onClick={handleScrape}
-          disabled={loading}
-          className={styles.scrapeButton}
-        >
-          {loading ? "Scraping..." : "Scrape"}
-        </button>
+        <div className={styles.content}>
+          {loadingState === 'scraping' ? (
+            <>
+              <div className={styles.loader}></div>
+              <p>Go get a tea, scraping these sources will take a while...</p>
+            </>
+          ) : loadingState === 'fetching' ? (
+            <div className={styles.fetchingLoader}>
+              <div className={styles.progressBar}>
+                <div className={styles.progressFill}></div>
+              </div>
+              <p>Updating feed...</p>
+            </div>
+          ) : loading || !jobsData ? (
+            <>
+              <div className={styles.loader}></div>
+              <p>Loading...</p>
+            </>
+          ) : (
+            <div className={styles.jobsContainer}>
+              <FeedToggle
+                selectedFeed={selectedFeed}
+                onFeedChange={handleFeedChange}
+                hasPersonalizedResults={jobsData?.total_items ? jobsData.total_items > 0 : false}
+              />
 
-        {/* Profile Management Buttons */}
-        <div className={styles.profileButtons}>
-          <button
-            onClick={() => setShowProfileManager(true)}
-            className={styles.profileButton}
-          >
-            📋 Manage Profile
-          </button>
-          <button
-            onClick={() => setShowCVUploader(true)}
-            className={styles.cvButton}
-          >
-            📄 Upload CV
-          </button>
+              <JobsTable
+                jobsData={jobsData}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                availableModules={filterableModules}
+                pendingSearchTerm={pendingSearchTerm}
+                onPendingSearchChange={setPendingSearchTerm}
+                onSearchClick={handleSearchClick}
+                isPersonalizedFeed={selectedFeed === "for-you"}
+              />
+
+              {isDatabaseEmpty && (
+                <p className={styles.noJobsMessage}>
+                  No jobs scraped yet. Click 'Scrape'...
+                </p>
+              )}
+
+              {isFilteredButEmpty && (
+                <p className={styles.noJobsMessage}>
+                  No jobs match your current search criteria...
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
-        {failedScrapers.length > 0 && (
-          <p className={styles.failedScrapers}>
-            ⚠ Scrapers failed: {failedScrapers.join(", ")}
-          </p>
-        )}
-      </div>
-
-      <div className={styles.content}>
-        {loading || !jobsData ? (
-          <>
-            <div className={styles.loader}></div>
-            <p>Go get a tea, scraping these sources will take a while...</p>
-          </>
-        ) : (
-          <div className={styles.jobsContainer}>
-            <FeedToggle
-              selectedFeed={selectedFeed}
-              onFeedChange={handleFeedChange}
-              hasPersonalizedResults={jobsData?.total_items ? jobsData.total_items > 0 : false}
-            />
-
-            <JobsTable
-              jobsData={jobsData}
-              filters={filters}
-              onFilterChange={handleFilterChange}
-              availableModules={filterableModules}
-              pendingSearchTerm={pendingSearchTerm}
-              onPendingSearchChange={setPendingSearchTerm}
-              onSearchClick={handleSearchClick}
-              isPersonalizedFeed={selectedFeed === "for-you"}
-            />
-
-            {isDatabaseEmpty && (
-              <p className={styles.noJobsMessage}>
-                No jobs scraped yet. Click 'Scrape'...
-              </p>
-            )}
-
-            {isFilteredButEmpty && (
-              <p className={styles.noJobsMessage}>
-                No jobs match your current search criteria...
-              </p>
-            )}
+        {/* Profile Manager Overlay */}
+        {showProfileManager && (
+          <div
+            className={styles.overlay}
+            onClick={(e) => handleOverlayClick(e, () => setShowProfileManager(false))}
+          >
+            <div className={styles.overlayContent}>
+              <ProfileManager
+                onClose={() => setShowProfileManager(false)}
+                onProfileUpdate={handleProfileUpdate}
+              />
+            </div>
           </div>
         )}
+
+        {/* CV Uploader Overlay */}
+        {showCVUploader && (
+          <div
+            className={styles.overlay}
+            onClick={(e) => handleOverlayClick(e, () => setShowCVUploader(false))}
+          >
+            <div className={styles.overlayContent}>
+              <CVUploader
+                onUploadSuccess={handleCVUploadSuccess}
+                onClose={() => setShowCVUploader(false)}
+                onAnalysisStart={handleCVAnalysisStart}
+                onAnalysisEnd={handleCVAnalysisEnd}
+              />
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Profile Manager Overlay */}
-      {showProfileManager && (
-        <div
-          className={styles.overlay}
-          onClick={(e) => handleOverlayClick(e, () => setShowProfileManager(false))}
-        >
-          <div className={styles.overlayContent}>
-            <ProfileManager onClose={() => setShowProfileManager(false)} />
-          </div>
-        </div>
-      )}
-
-      {/* CV Uploader Overlay */}
-      {showCVUploader && (
-        <div
-          className={styles.overlay}
-          onClick={(e) => handleOverlayClick(e, () => setShowCVUploader(false))}
-        >
-          <div className={styles.overlayContent}>
-            <CVUploader
-              onUploadSuccess={handleCVUploadSuccess}
-              onClose={() => setShowCVUploader(false)}
-            />
-          </div>
-        </div>
-      )}
-    </div>
+    </NotificationProvider>
   );
 }
 

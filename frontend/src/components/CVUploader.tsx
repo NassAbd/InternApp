@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useNotifications } from "../contexts/NotificationContext";
 import styles from "./CVUploader.module.css";
 
 interface CVUploadResult {
@@ -16,9 +17,11 @@ interface CVUploadResult {
 interface CVUploaderProps {
     onUploadSuccess?: (result: CVUploadResult) => void;
     onClose?: () => void;
+    onAnalysisStart?: () => void;
+    onAnalysisEnd?: () => void;
 }
 
-export function CVUploader({ onUploadSuccess, onClose }: CVUploaderProps) {
+export function CVUploader({ onUploadSuccess, onClose, onAnalysisStart, onAnalysisEnd }: CVUploaderProps) {
     const [file, setFile] = useState<File | null>(null);
     const [apiKey, setApiKey] = useState("");
     const [mergeWithExisting, setMergeWithExisting] = useState(true);
@@ -28,6 +31,7 @@ export function CVUploader({ onUploadSuccess, onClose }: CVUploaderProps) {
     const [dragOver, setDragOver] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { addNotification } = useNotifications();
 
     const handleFileSelect = (selectedFile: File) => {
         if (selectedFile.type !== "application/pdf") {
@@ -82,6 +86,9 @@ export function CVUploader({ onUploadSuccess, onClose }: CVUploaderProps) {
             setError(null);
             setResult(null);
 
+            // Notify parent that analysis is starting
+            onAnalysisStart?.();
+
             const formData = new FormData();
             formData.append("file", file);
             formData.append("api_key", apiKey.trim());
@@ -100,6 +107,14 @@ export function CVUploader({ onUploadSuccess, onClose }: CVUploaderProps) {
             const uploadResult: CVUploadResult = await response.json();
             setResult(uploadResult);
 
+            // Show global notification
+            addNotification({
+                type: 'success',
+                title: 'CV Analysis Complete!',
+                message: `Successfully extracted ${uploadResult.extracted_tags.length} skills and updated your profile.`,
+                duration: 5000
+            });
+
             // Call success callback if provided
             if (onUploadSuccess) {
                 onUploadSuccess(uploadResult);
@@ -110,6 +125,8 @@ export function CVUploader({ onUploadSuccess, onClose }: CVUploaderProps) {
             setError(err instanceof Error ? err.message : "Failed to upload CV");
         } finally {
             setUploading(false);
+            // Notify parent that analysis is ending
+            onAnalysisEnd?.();
         }
     };
 
@@ -301,7 +318,7 @@ export function CVUploader({ onUploadSuccess, onClose }: CVUploaderProps) {
                             disabled={!file || !apiKey.trim() || uploading}
                             className={styles.uploadButton}
                         >
-                            {uploading ? "Analyzing..." : "Analyze CV"}
+                            {uploading ? "Analyzing CV..." : "Analyze CV"}
                         </button>
 
                         {file && (

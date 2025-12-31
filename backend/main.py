@@ -161,6 +161,34 @@ def save_profile(profile_data: dict = Body(...)):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
+@app.delete("/profile")
+def reset_profile():
+    """
+    Reset user profile to default/empty state.
+    
+    Returns:
+        Default empty profile
+        
+    Raises:
+        HTTPException: If profile cannot be reset
+    """
+    try:
+        # Create default empty profile
+        default_profile = {
+            "tags": [],
+            "location": None,
+            "groq_api_key": None
+        }
+        
+        # Save the default profile (this will overwrite existing profile)
+        profile_manager.saveProfile(default_profile)
+        
+        # Return the reset profile
+        return profile_manager.loadProfile()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to reset profile: {str(e)}")
+
+
 @app.post("/profile/parse-cv")
 async def parse_cv(
     file: UploadFile = File(...),

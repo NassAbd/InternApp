@@ -56,13 +56,13 @@ class TaggingService:
                 "operations", "opérations", "team", "équipe", "leadership", "supervision", "organization", 
                 "organisation", "administration", "budget", "resource", "ressource", "stakeholder", "partie prenante", 
                 "pmo", "supply chain", "achats", "procurement"
-            ],
-            "internship": [
-                "stage", "intern", "internship", "student", "étudiant", "graduate", "diplômé", "trainee", 
-                "apprentice", "apprenti", "alternance", "junior", "entry", "learning", "apprentissage", 
-                "training", "formation", "education", "éducation", "pfe", "master", "licence"
             ]
-}
+        }   
+        """internship": [
+            "stage", "intern", "internship", "student", "étudiant", "graduate", "diplômé", "trainee", 
+            "apprentice", "apprenti", "alternance", "junior", "entry", "learning", "apprentissage", 
+            "training", "formation", "education", "éducation", "pfe", "master", "licence"
+        ]"""
         
         # Common stop words to remove during text cleaning
         self._stop_words = {
