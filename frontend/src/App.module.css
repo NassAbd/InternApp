@@ -100,18 +100,19 @@
   color: var(--color-text-secondary);
   background-color: var(--color-bg-card);
   border: 1px solid var(--color-border);
-  border-radius: 9999px; /* Pill shape */
+  border-radius: 9999px;
+  /* Pill shape */
   transition: all 0.2s ease;
 }
 
-.hiddenCheckbox:checked + .moduleLabelText {
+.hiddenCheckbox:checked+.moduleLabelText {
   background-color: var(--color-accent-primary);
   color: white;
   border-color: var(--color-accent-primary);
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
-.hiddenCheckbox:focus-visible + .moduleLabelText {
+.hiddenCheckbox:focus-visible+.moduleLabelText {
   outline: 2px solid var(--color-accent-primary);
   outline-offset: 2px;
 }
@@ -121,8 +122,9 @@
   color: var(--color-accent-primary);
 }
 
-.hiddenCheckbox:checked:hover + .moduleLabelText {
-  color: white; /* Keep white text when checked and hovered */
+.hiddenCheckbox:checked:hover+.moduleLabelText {
+  color: white;
+  /* Keep white text when checked and hovered */
   background-color: var(--color-accent-hover);
   border-color: var(--color-accent-hover);
 }
@@ -165,7 +167,8 @@
   flex: 1;
   width: 100%;
   max-width: 1200px;
-  overflow: visible; /* Changed from hidden to avoid clipping shadows */
+  overflow: visible;
+  /* Changed from hidden to avoid clipping shadows */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -201,6 +204,183 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Profile Management Buttons */
+.profileButtons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.profileButton,
+.cvButton {
+  padding: 0.625rem 1.5rem;
+  border: 2px solid var(--color-accent-primary);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.profileButton {
+  background-color: transparent;
+  color: var(--color-accent-primary);
+}
+
+.profileButton:hover {
+  background-color: var(--color-accent-primary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+.cvButton {
+  background-color: transparent;
+  color: var(--color-accent-primary);
+}
+
+.cvButton:hover {
+  background-color: var(--color-accent-primary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+/* Overlay Styles */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  /* Higher than scoring explanation overlay */
+  padding: 1rem;
+  animation: overlayFadeIn 0.2s ease-out;
+}
+
+.overlayContent {
+  background-color: var(--color-bg-body);
+  border-radius: 0.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: overlaySlideIn 0.3s ease-out;
+  position: relative;
+  z-index: 2001;
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlaySlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Responsive Design for Overlays */
+@media (max-width: 768px) {
+  .overlay {
+    padding: 0.5rem;
+  }
+
+  .overlayContent {
+    max-width: 95vw;
+    max-height: 95vh;
+    border-radius: 0.5rem;
+  }
+
+  .profileButtons {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .profileButton,
+  .cvButton {
+    width: 100%;
+    max-width: 200px;
+    justify-content: center;
+  }
+}
+
+/* Fetching Loader */
+.fetchingLoader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+  gap: 1rem;
+}
+
+.progressBar {
+  width: 300px;
+  height: 4px;
+  background-color: #e5e7eb;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent-primary), var(--color-accent-hover));
+  border-radius: 2px;
+  animation: progressAnimation 2s ease-in-out infinite;
+}
+
+@keyframes progressAnimation {
+  0% {
+    width: 0%;
+    transform: translateX(-100%);
+  }
+
+  50% {
+    width: 100%;
+    transform: translateX(0%);
+  }
+
+  100% {
+    width: 100%;
+    transform: translateX(100%);
+  }
+}
+
+.fetchingLoader p {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  margin: 0;
 }
