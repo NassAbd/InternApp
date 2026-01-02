@@ -1,5 +1,6 @@
 import { useState } from "react";
 import styles from "./JobsTable.module.css";
+import { TrackButton } from "./TrackButton";
 
 type Job = {
   company: string;
@@ -37,6 +38,12 @@ type Props = {
   onPendingSearchChange: (term: string) => void;
   onSearchClick: () => void;
   isPersonalizedFeed?: boolean;
+  // Application tracking props
+  trackedJobs?: Set<string>;
+  trackedLinks?: Set<string>;
+  onTrackJob?: (job: Job) => void;
+  onUntrackJob?: (jobId: string) => void;
+  trackingLoading?: boolean;
 };
 
 // Tooltip component for job titles
@@ -81,10 +88,29 @@ const TitleTooltip = ({ title, children }: { title: string; children: React.Reac
   );
 };
 
-export function JobsTable({ jobsData, availableModules, filters, onFilterChange, pendingSearchTerm, onPendingSearchChange, onSearchClick, isPersonalizedFeed = false }: Props) {
+export function JobsTable({
+  jobsData,
+  availableModules,
+  filters,
+  onFilterChange,
+  pendingSearchTerm,
+  onPendingSearchChange,
+  onSearchClick,
+  isPersonalizedFeed = false,
+  trackedJobs = new Set(),
+  trackedLinks = new Set(),
+  onTrackJob,
+  onUntrackJob,
+  trackingLoading = false
+}: Props) {
 
   const { page, size, total_pages, total_items, jobs: displayedJobs } = jobsData;
   const { selectedModule } = filters;
+
+  // Check if a job is tracked (strict, collision-free): by exact link membership
+  const isJobTracked = (job: Job): boolean => {
+    return trackedLinks.has(job.link);
+  };
 
   const handleModuleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     onFilterChange({ selectedModule: e.target.value });
@@ -163,6 +189,7 @@ export function JobsTable({ jobsData, availableModules, filters, onFilterChange,
               <th className={styles.tableHeadCell}>Match Score</th>
             )}
             <th className={styles.tableHeadCell}>Link</th>
+            <th className={styles.tableHeadCell}>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -205,6 +232,17 @@ export function JobsTable({ jobsData, availableModules, filters, onFilterChange,
                   See offer
                 </a>
               </td>
+              <td className={styles.tableCell}>
+                {onTrackJob && onUntrackJob && (
+                  <TrackButton
+                    job={job}
+                    isTracked={isJobTracked(job)}
+                    onTrack={onTrackJob}
+                    onUntrack={() => onUntrackJob(job.link)}
+                    loading={trackingLoading}
+                  />
+                )}
+              </td>
             </tr>
           ))}
 
@@ -215,6 +253,7 @@ export function JobsTable({ jobsData, availableModules, filters, onFilterChange,
               <td className={styles.tableCell}>&nbsp;</td>
               <td className={styles.tableCell}>&nbsp;</td>
               {isPersonalizedFeed && <td className={styles.tableCell}>&nbsp;</td>}
+              <td className={styles.tableCell}>&nbsp;</td>
               <td className={styles.tableCell}>&nbsp;</td>
             </tr>
           ))}

@@ -73,18 +73,16 @@ export function FeedToggle({ selectedFeed, onFeedChange, hasPersonalizedResults 
                     onClick={() => onFeedChange("for-you")}
                 >
                     For You
-                    {selectedFeed === "for-you" && (
-                        <button
-                            className={styles.infoButton}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setShowExplanation(true);
-                            }}
-                            title="How scoring works"
-                        >
-                            <InfoIcon />
-                        </button>
-                    )}
+                </button>
+                <button
+                    className={styles.infoButton}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setShowExplanation(true);
+                    }}
+                    title="How scoring works"
+                >
+                    <InfoIcon />
                 </button>
             </div>
 

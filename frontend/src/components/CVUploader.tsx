@@ -122,7 +122,13 @@ export function CVUploader({ onUploadSuccess, onClose, onAnalysisStart, onAnalys
 
         } catch (err) {
             console.error("Error uploading CV:", err);
-            setError(err instanceof Error ? err.message : "Failed to upload CV");
+            addNotification({
+                type: 'error',
+                title: 'CV Analysis failed!',
+                message: `${err instanceof Error ? err.message : "Failed to upload CV"}`,
+                duration: 5000
+            });
+            //setError(err instanceof Error ? err.message : "Failed to upload CV");
         } finally {
             setUploading(false);
             // Notify parent that analysis is ending

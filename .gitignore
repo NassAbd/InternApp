@@ -1,4 +1,4 @@
 node_modules
 venv
 *.pyc
-/backend/jobs.json
+/backend/*.json

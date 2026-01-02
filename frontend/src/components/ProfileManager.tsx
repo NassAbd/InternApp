@@ -218,7 +218,6 @@ export function ProfileManager({ onClose, onProfileUpdate }: ProfileManagerProps
 
             {/* Default Empty State */}
             <div className={styles.emptyState}>
-                <h3>Welcome to Personalized Job Filtering!</h3>
                 <p>
                     Set up your profile to receive personalized job recommendations.
                     Select your areas of interest and preferred location to get started.
