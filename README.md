@@ -1,10 +1,10 @@
 <h1 align="center">InternApp</h1>
 
 <p align="center">
-  <img src="./assets/screen_rework_2.png" alt="InternApp" width="900"/>
+  <img src="./assets/screenshot.png" alt="InternApp" width="900"/>
 </p>
 
-A full‑stack project to scrape internship listings from multiple sources and browse them via a React UI with **personalized job recommendations**.
+A full‑stack project to scrape internship listings from multiple sources and browse them via a React UI with **personalized job recommendations** and **application tracking dashboard**.
 
 ## Project Structure
 
@@ -14,18 +14,22 @@ InternApp/
 │  ├─ main.py                # FastAPI app with routes
 │  ├─ scrapers/              # Site-specific scrapers (e.g. Ariane, Airbus)
 │  ├─ config.py              # Configuration and scraper registration
+│  ├─ application_manager.py # Job application tracking logic
+│  ├─ storage_manager.py     # Data persistence and validation
 │  ├─ profile_manager.py     # User profile management
 │  ├─ scoring_engine.py      # Job relevance scoring algorithm
 │  ├─ cv_parser.py           # AI-powered CV analysis
 │  ├─ tagging_service.py     # Job categorization and tagging
 │  ├─ (jobs.json)            # Persisted job results
 │  ├─ (user_profile.json)    # User preferences and profile data
+│  ├─ (user_applications.json) # Tracked job applications
 │  ├─ requirements.txt       # Python deps (FastAPI, Playwright, etc.)
 │  └─ Dockerfile             # Uvicorn dev server, Playwright base image
 ├─ frontend/
 │  ├─ src/
-│  │  ├─ components/         # React components (ProfileManager, CVUploader, etc.)
+│  │  ├─ components/         # React components (ProfileManager, CVUploader, ApplicationDashboard, etc.)
 │  │  ├─ contexts/           # React contexts (NotificationContext)
+│  │  ├─ hooks/              # Custom React hooks (useApplicationTracker)
 │  │  └─ ...                 # React + Vite + TS
 │  ├─ package.json           # Scripts and deps
 │  └─ Dockerfile             # Vite dev server
@@ -48,6 +52,14 @@ InternApp/
 - **Full-Text Search**: Search for jobs by keywords in the title, company, or location.
 - **New Job Highlighting**: Newly scraped jobs are marked with a "New" badge.
 - **Pagination**: Browse through a large number of job listings with ease.
+
+### Job Application Tracking
+- **Track Applications**: Add jobs to your personal tracking list with one-click tracking buttons
+- **Kanban Dashboard**: Visual dashboard with status columns (Interested, Applied, Interview, Offer, Rejected)
+- **Status Management**: Update application status with dropdown selectors and visual indicators
+- **Personal Notes**: Add and edit notes for each tracked application
+- **Application Timeline**: Track when applications were added and last updated
+- **Progress Overview**: Real-time statistics and progress indicators for all tracked applications
 
 ### Personalization
 - **Personalized "For You" Feed**: AI-driven job recommendations based on user preferences
@@ -178,6 +190,65 @@ Uploads and analyzes a CV to extract skills and update profile.
   }
   ```
 
+### Application Tracking Endpoints
+
+- **`POST /applications`**
+Adds a job to the application tracking list.
+  - **Body** (JSON): Complete job object to track
+  - **Response**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "id": "unique_hash",
+      "job": {...},
+      "status": "Interested",
+      "date_added": "2024-01-02T10:30:00Z",
+      "last_update": "2024-01-02T10:30:00Z"
+    }
+  }
+  ```
+
+- **`GET /applications`**
+Returns all tracked applications sorted by last update.
+  - **Response**:
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "id": "unique_hash",
+        "job": {...},
+        "status": "Applied",
+        "date_added": "2024-01-02T10:30:00Z",
+        "last_update": "2024-01-02T11:15:00Z",
+        "notes": "Optional user notes"
+      }
+    ]
+  }
+  ```
+
+- **`PATCH /applications/{id}`**
+Updates an existing tracked application.
+  - **Body** (JSON):
+  ```json
+  {
+    "status": "Interview",
+    "notes": "Phone interview scheduled for Friday"
+  }
+  ```
+  - **Response**: Updated application object
+
+- **`DELETE /applications/{id}`**
+Removes an application from tracking.
+  - **Response**:
+  ```json
+  {
+    "success": true,
+    "message": "Application removed successfully"
+  }
+  ```
+
 ### Scraping Endpoints
 
 - **`POST /scrape`**
@@ -243,12 +314,30 @@ Triggers a scrape of only the specified modules.
 - **Progress Feedback**: Context-aware loading states during analysis
 - **Secure**: API keys stored locally, used only for analysis
 
+## Application Tracking Workflow
+
+### Getting Started with Tracking
+1. **Browse Jobs**: Use the job feed to discover relevant opportunities
+2. **Track Applications**: Click the "Track" button on any job to add it to your dashboard
+3. **Manage Progress**: Switch to the Dashboard view to see all tracked applications
+4. **Update Status**: Move applications through stages: Interested → Applied → Interview → Offer/Rejected
+5. **Add Notes**: Keep personal notes and reminders for each application
+
+### Application Status Flow
+- **Interested**: Jobs you want to apply to (starting status)
+- **Applied**: Applications you've submitted
+- **Interview**: Applications that progressed to interview stage
+- **Offer**: Applications that resulted in job offers
+- **Rejected**: Applications that were declined or withdrawn
+
 ## Data and Persistence
 
 - **Job Data**: The backend stores results in `backend/jobs.json`.
 - **User Profile**: Profile data persisted in `backend/user_profile.json`.
+- **Application Tracking**: Tracked applications stored in `backend/user_applications.json` with backup system.
 - **Deduplication**: Existing links are deduplicated on subsequent scrapes; existing items have `new: false` while newly found items are marked `new: true`.
 - **Profile Persistence**: User preferences survive browser sessions and application restarts.
+- **Application Persistence**: Tracked applications and their status updates are preserved across sessions with automatic backup/restore functionality.
 
 ## Contributing
 

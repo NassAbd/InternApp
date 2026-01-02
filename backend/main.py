@@ -12,6 +12,7 @@ from tagging_service import TaggingService
 from profile_manager import ProfileManager
 from scoring_engine import ScoringEngine
 from cv_parser import CVParser
+from application_manager import ApplicationManager
 # -------------------
 
 app = FastAPI()
@@ -21,6 +22,7 @@ tagging_service = TaggingService()
 profile_manager = ProfileManager()
 scoring_engine = ScoringEngine()
 cv_parser = CVParser()
+application_manager = ApplicationManager()
 
 origins = [
     "http://localhost:5173",
@@ -346,6 +348,117 @@ def get_personalized_jobs(
         
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Profile error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+# --- Application Tracking Endpoints ---
+@app.post("/applications")
+def track_application(job_data: dict = Body(...)):
+    """
+    Add a job to the application tracking list.
+    
+    Args:
+        job_data: Dictionary containing complete job information
+        
+    Returns:
+        Created application with tracking metadata
+        
+    Raises:
+        HTTPException: If job data is invalid or tracking fails
+    """
+    try:
+        application = application_manager.add_application(job_data)
+        return {
+            "success": True,
+            "data": application
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@app.get("/applications")
+def get_tracked_applications():
+    """
+    Retrieve all tracked applications sorted by last update.
+    
+    Returns:
+        List of tracked applications with metadata
+        
+    Raises:
+        HTTPException: If applications cannot be retrieved
+    """
+    try:
+        applications = application_manager.get_applications()
+        return {
+            "success": True,
+            "data": applications
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@app.patch("/applications/{job_id}")
+def update_application(job_id: str, updates: dict = Body(...)):
+    """
+    Update an existing tracked application.
+    
+    Args:
+        job_id: Application ID to update
+        updates: Dictionary containing fields to update (status, notes)
+        
+    Returns:
+        Updated application data
+        
+    Raises:
+        HTTPException: If application not found or update data is invalid
+    """
+    try:
+        application = application_manager.update_application(job_id, updates)
+        return {
+            "success": True,
+            "data": application
+        }
+    except ValueError as e:
+        # Check if it's a "not found" error
+        if "not found" in str(e).lower():
+            raise HTTPException(status_code=404, detail=str(e))
+        else:
+            raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@app.delete("/applications/{job_id}")
+def remove_application(job_id: str):
+    """
+    Remove an application from tracking.
+    
+    Args:
+        job_id: Application ID to remove
+        
+    Returns:
+        Success status
+        
+    Raises:
+        HTTPException: If application not found or removal fails
+    """
+    try:
+        removed = application_manager.remove_application(job_id)
+        if not removed:
+            raise HTTPException(status_code=404, detail=f"Application with ID {job_id} not found")
+        
+        return {
+            "success": True,
+            "message": "Application removed successfully"
+        }
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 

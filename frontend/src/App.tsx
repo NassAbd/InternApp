@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { JobsTable, FeedToggle, ProfileManager, CVUploader } from "./components";
+import { JobsTable, FeedToggle, ProfileManager, CVUploader, ApplicationDashboard } from "./components";
 import SourceToggle from "./components/SourceToggle";
 import ScraperWarningToggle from "./components/ScraperWarningToggle";
 import NotificationContainer from "./components/NotificationContainer";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { useApplicationTracker } from "./hooks/useApplicationTracker";
 import styles from "./App.module.css";
 import type { FeedType } from "./components/FeedToggle";
 
@@ -29,7 +30,11 @@ type JobsResponse = {
   filterable_modules: string[];
 };
 
-function App() {
+type CurrentView = 'feed' | 'dashboard';
+
+// Create a separate component that uses the hooks inside the provider
+function AppContent() {
+  const [currentView, setCurrentView] = useState<CurrentView>('feed');
   const [jobsData, setJobsData] = useState<JobsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingState, setLoadingState] = useState<'idle' | 'scraping' | 'fetching' | 'analyzing'>('idle');
@@ -56,6 +61,9 @@ function App() {
   // Overlay states
   const [showProfileManager, setShowProfileManager] = useState(false);
   const [showCVUploader, setShowCVUploader] = useState(false);
+
+  // Application tracking - now inside the provider
+  const applicationTracker = useApplicationTracker();
 
 
   const isFilterActive = filters.searchTerm !== "" || filters.selectedModule !== "";
@@ -117,6 +125,28 @@ function App() {
     fetchAvailableScrapeModules();
   }, []);
 
+  // Handle URL-based routing
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1); // Remove the '#'
+      if (hash === 'dashboard') {
+        setCurrentView('dashboard');
+      } else {
+        setCurrentView('feed');
+      }
+    };
+
+    // Set initial view based on current hash
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
+
   // Synchronise the temporary search term when the real filter changes (e.g: reset).
   useEffect(() => {
     setPendingSearchTerm(filters.searchTerm);
@@ -149,6 +179,16 @@ function App() {
   const handleFeedChange = (feed: FeedType) => {
     setSelectedFeed(feed);
     setFilters((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const navigateToFeed = () => {
+    window.location.hash = '';
+    setCurrentView('feed');
+  };
+
+  const navigateToDashboard = () => {
+    window.location.hash = 'dashboard';
+    setCurrentView('dashboard');
   };
 
   const handleScrape = async () => {
@@ -246,6 +286,62 @@ function App() {
     };
   }, [showProfileManager, showCVUploader]);
 
+  // Build a derived tracked set that includes both backend IDs and frontend IDs (btoa(link))
+  const derivedTrackedJobs: Set<string> = (() => {
+    const s = new Set<string>(applicationTracker.state.trackedJobs);
+    try {
+      for (const app of applicationTracker.state.applications) {
+        try {
+          const btoaId = btoa(app.job.link).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+          s.add(btoaId);
+        } catch (_) {
+          // ignore encoding issues
+        }
+      }
+    } catch (_) {
+      // ignore
+    }
+    return s;
+  })();
+
+  // Also build a set of tracked links for strict matching
+  const trackedLinks: Set<string> = (() => {
+    const s = new Set<string>();
+    try {
+      for (const app of applicationTracker.state.applications) {
+        if (app.job?.link) s.add(app.job.link);
+      }
+    } catch (_) {
+      // ignore
+    }
+    return s;
+  })();
+
+  // Map a possibly-frontend identifier to backend id before untracking.
+  // Accepts either: exact job link, or btoa(link) short id, or backend id.
+  const onUntrackJobProxy = async (inputId: string) => {
+    let backendId = inputId;
+    try {
+      // 1) Try exact link equality first (collision-free)
+      let match = applicationTracker.state.applications.find(app => app.job?.link === inputId);
+      if (!match) {
+        // 2) Fallback to btoa-derived id comparison
+        match = applicationTracker.state.applications.find(app => {
+          try {
+            const derived = btoa(app.job.link).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+            return derived === inputId;
+          } catch {
+            return false;
+          }
+        });
+      }
+      if (match) backendId = match.id;
+    } catch (_) {
+      // ignore mapping failures and try with provided id
+    }
+    await applicationTracker.untrackJob(backendId);
+  };
+
   // Handle overlay background click
   const handleOverlayClick = (e: React.MouseEvent, closeFunction: () => void) => {
     if (e.target === e.currentTarget) {
@@ -254,122 +350,148 @@ function App() {
   };
 
   return (
-    <NotificationProvider>
       <div className={styles.container}>
         <NotificationContainer />
 
-        <div className={styles.header}>
-          <h1 className={styles.title}>Internships</h1>
-          <p className={styles.subtitle}>
-            Scrapes internship listings, highlights newly published offers, and makes them easy to explore.
-          </p>
-
-          <SourceToggle />
-          <ScraperWarningToggle />
-
-          <p className={styles.warning}>⚠ Scrape all these modules can take a while. You can select specific modules to scrape if you want to save time.</p>
-
-          <div className={styles.modulesContainer}>
-            {availableScrapeModules.length === 0 ? (
-              <p>Loading modules...</p>
-            ) : (
-              availableScrapeModules.map((m) => (
-                <label key={m} className={styles.moduleCheckbox}>
-                  <input
-                    type="checkbox"
-                    value={m}
-                    checked={selectedModules.includes(m)}
-                    onChange={() => toggleModule(m)}
-                    className={styles.hiddenCheckbox}
-                  />
-                  <span className={styles.moduleLabelText}>{m}</span>
-                </label>
-              ))
-            )}
-          </div>
-
+        {/* Navigation */}
+        <div className={styles.navigation}>
           <button
-            onClick={handleScrape}
-            disabled={loading}
-            className={styles.scrapeButton}
+            onClick={navigateToFeed}
+            className={`${styles.navButton} ${currentView === 'feed' ? styles.navButtonActive : ''}`}
           >
-            {loadingState === 'scraping' ? "Scraping..." : "Scrape"}
+            Job Feed
           </button>
-
-          {/* Profile Management Buttons */}
-          <div className={styles.profileButtons}>
-            <button
-              onClick={() => setShowProfileManager(true)}
-              className={styles.profileButton}
-            >
-              Manage Profile
-            </button>
-            <button
-              onClick={() => setShowCVUploader(true)}
-              className={styles.cvButton}
-            >
-              Upload CV
-            </button>
-          </div>
-
-          {failedScrapers.length > 0 && (
-            <p className={styles.failedScrapers}>
-              ⚠ Scrapers failed: {failedScrapers.join(", ")}
-            </p>
-          )}
+          <button
+            onClick={navigateToDashboard}
+            className={`${styles.navButton} ${currentView === 'dashboard' ? styles.navButtonActive : ''}`}
+          >
+            Dashboard
+          </button>
         </div>
 
-        <div className={styles.content}>
-          {loadingState === 'scraping' ? (
-            <>
-              <div className={styles.loader}></div>
-              <p>Go get a tea, scraping these sources will take a while...</p>
-            </>
-          ) : loadingState === 'fetching' ? (
-            <div className={styles.fetchingLoader}>
-              <div className={styles.progressBar}>
-                <div className={styles.progressFill}></div>
+        {currentView === 'dashboard' ? (
+          <ApplicationDashboard />
+        ) : (
+          <>
+            <div className={styles.header}>
+              <h1 className={styles.title}>Internships</h1>
+              <p className={styles.subtitle}>
+                Scrapes internship listings, highlights newly published offers, and makes them easy to explore.
+              </p>
+
+              <SourceToggle />
+              <ScraperWarningToggle />
+
+              <p className={styles.warning}>⚠ Scrape all these modules can take a while. You can select specific modules to scrape if you want to save time.</p>
+
+              <div className={styles.modulesContainer}>
+                {availableScrapeModules.length === 0 ? (
+                  <p>Loading modules...</p>
+                ) : (
+                  availableScrapeModules.map((m) => (
+                    <label key={m} className={styles.moduleCheckbox}>
+                      <input
+                        type="checkbox"
+                        value={m}
+                        checked={selectedModules.includes(m)}
+                        onChange={() => toggleModule(m)}
+                        className={styles.hiddenCheckbox}
+                      />
+                      <span className={styles.moduleLabelText}>{m}</span>
+                    </label>
+                  ))
+                )}
               </div>
-              <p>Updating feed...</p>
-            </div>
-          ) : loading || !jobsData ? (
-            <>
-              <div className={styles.loader}></div>
-              <p>Loading...</p>
-            </>
-          ) : (
-            <div className={styles.jobsContainer}>
-              <FeedToggle
-                selectedFeed={selectedFeed}
-                onFeedChange={handleFeedChange}
-                hasPersonalizedResults={jobsData?.total_items ? jobsData.total_items > 0 : false}
-              />
 
-              <JobsTable
-                jobsData={jobsData}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                availableModules={filterableModules}
-                pendingSearchTerm={pendingSearchTerm}
-                onPendingSearchChange={setPendingSearchTerm}
-                onSearchClick={handleSearchClick}
-                isPersonalizedFeed={selectedFeed === "for-you"}
-              />
+              <button
+                onClick={handleScrape}
+                disabled={loading}
+                className={styles.scrapeButton}
+              >
+                {loadingState === 'scraping' ? "Scraping..." : "Scrape"}
+              </button>
 
-              {isDatabaseEmpty && (
-                <p className={styles.noJobsMessage}>
-                  No jobs scraped yet. Click 'Scrape'...
-                </p>
-              )}
+              {/* Profile Management Buttons */}
+              <div className={styles.profileButtons}>
+                <button
+                  onClick={() => setShowProfileManager(true)}
+                  className={styles.profileButton}
+                >
+                  Manage Profile
+                </button>
+                <button
+                  onClick={() => setShowCVUploader(true)}
+                  className={styles.cvButton}
+                >
+                  Upload CV
+                </button>
+              </div>
 
-              {isFilteredButEmpty && (
-                <p className={styles.noJobsMessage}>
-                  No jobs match your current search criteria...
+              {failedScrapers.length > 0 && (
+                <p className={styles.failedScrapers}>
+                  ⚠ Scrapers failed: {failedScrapers.join(", ")}
                 </p>
               )}
             </div>
-          )}
-        </div>
+
+            <div className={styles.content}>
+              {loadingState === 'scraping' ? (
+                <>
+                  <div className={styles.loader}></div>
+                  <p>Go get a tea, scraping these sources will take a while...</p>
+                </>
+              ) : loadingState === 'fetching' ? (
+                <div className={styles.fetchingLoader}>
+                  <div className={styles.progressBar}>
+                    <div className={styles.progressFill}></div>
+                  </div>
+                  <p>Updating feed...</p>
+                </div>
+              ) : loading || !jobsData ? (
+                <>
+                  <div className={styles.loader}></div>
+                  <p>Loading...</p>
+                </>
+              ) : (
+                <div className={styles.jobsContainer}>
+                  <FeedToggle
+                    selectedFeed={selectedFeed}
+                    onFeedChange={handleFeedChange}
+                    hasPersonalizedResults={jobsData?.total_items ? jobsData.total_items > 0 : false}
+                  />
+
+                  <JobsTable
+                    jobsData={jobsData}
+                    filters={filters}
+                    onFilterChange={handleFilterChange}
+                    availableModules={filterableModules}
+                    pendingSearchTerm={pendingSearchTerm}
+                    onPendingSearchChange={setPendingSearchTerm}
+                    onSearchClick={handleSearchClick}
+                    isPersonalizedFeed={selectedFeed === "for-you"}
+                    trackedJobs={derivedTrackedJobs}
+                    trackedLinks={trackedLinks}
+                    onTrackJob={applicationTracker.trackJob}
+                    onUntrackJob={onUntrackJobProxy}
+                    trackingLoading={applicationTracker.state.loading}
+                  />
+
+                  {isDatabaseEmpty && (
+                    <p className={styles.noJobsMessage}>
+                      No jobs scraped yet. Click 'Scrape'...
+                    </p>
+                  )}
+
+                  {isFilteredButEmpty && (
+                    <p className={styles.noJobsMessage}>
+                      No jobs match your current search criteria...
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Profile Manager Overlay */}
         {showProfileManager && (
@@ -403,6 +525,13 @@ function App() {
           </div>
         )}
       </div>
+  );
+}
+
+function App() {
+  return (
+    <NotificationProvider>
+      <AppContent />
     </NotificationProvider>
   );
 }
