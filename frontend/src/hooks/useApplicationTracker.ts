@@ -18,7 +18,6 @@ export interface Job {
 export type ApplicationStatus =
     | 'Interested'
     | 'Applied'
-    | 'Waiting'
     | 'Interview'
     | 'Offer'
     | 'Rejected';
