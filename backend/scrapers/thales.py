@@ -59,18 +59,29 @@ async def fetch_jobs():
             for item in items:
                 a_tag = await item.query_selector("a[data-ph-at-id='job-link']") 
                 if not a_tag:
-                    continue
+                    raise ValueError("Could not find job link element (a[data-ph-at-id='job-link'])")
 
                 title = await a_tag.get_attribute("data-ph-at-job-title-text") 
                 if not title:
                     title = await a_tag.inner_text() 
                     title = title.strip()
+                
+                if not title:
+                     raise ValueError("Job title is empty")
                     
                 link = await a_tag.get_attribute("href") 
+                if not link:
+                     raise ValueError("Job link is empty")
 
                 location_el = await item.query_selector("span.workLocation") 
-                location = await location_el.text_content() if location_el else None 
+                if not location_el:
+                     raise ValueError("Could not find location element (span.workLocation)")
+                
+                location = await location_el.text_content()
                 location = location.strip() if location else None
+                
+                if not location:
+                     raise ValueError("Location is empty")
 
                 jobs.append({
                     "module": "thales",

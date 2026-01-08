@@ -40,17 +40,28 @@ async def fetch_jobs():
                 # Playwright methods that do not involve network I/O (like query_selector, text_content, get_attribute) remain synchronous on the ElementHandle object
                 a_tag = await item.query_selector("a[data-automation-id='jobTitle']")
                 if not a_tag:
-                    continue
+                    raise ValueError("Could not find job title element (a[data-automation-id='jobTitle'])")
 
                 title = await a_tag.text_content()
                 title = title.strip()
+                if not title:
+                     raise ValueError("Job title is empty")
+
                 link = await a_tag.get_attribute("href")
+                if not link:
+                    raise ValueError("Job link is empty")
+                    
                 if link and link.startswith("/"):
                     link = base_url + link
 
                 loc_el = await item.query_selector("div[data-automation-id='locations'] dd")
-                location = await loc_el.text_content() if loc_el else None
+                if not loc_el:
+                    raise ValueError("Could not find location element (div[data-automation-id='locations'] dd)")
+                
+                location = await loc_el.text_content()
                 location = location.strip() if location else None
+                if not location:
+                     raise ValueError("Location is empty")
 
 
                 jobs.append({

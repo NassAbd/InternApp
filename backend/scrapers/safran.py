@@ -50,12 +50,21 @@ async def fetch_jobs():
                 title_el = await item.query_selector("a.c-offer-item__title")  
                 info_spans = await item.query_selector_all(".c-offer-item__infos__item")  
 
-                if not title_el or len(info_spans) < 2:
-                    continue
+                if not title_el:
+                     raise ValueError("Could not find job title element (a.c-offer-item__title)")
+                
+                if len(info_spans) < 2:
+                     raise ValueError(f"Insufficient info spans found. Expected >= 2, got {len(info_spans)}")
 
                 title = await title_el.inner_text()  
                 title = title.strip()
+                if not title:
+                     raise ValueError("Job title is empty")
+
                 link = await title_el.get_attribute("href")  
+                if not link:
+                     raise ValueError("Job link is empty")
+                     
                 if link and link.startswith("/"):
                     link = "https://www.safran-group.com" + link
 
@@ -63,6 +72,9 @@ async def fetch_jobs():
                 company = company_raw.strip()
                 location_raw = await info_spans[1].inner_text()  
                 location = location_raw.strip()
+                
+                if not location:
+                     raise ValueError("Location is empty")
 
                 jobs.append({
                     "module": "safran",

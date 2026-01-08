@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { JobsTable, FeedToggle, ProfileManager, CVUploader, ApplicationDashboard } from "./components";
 import SourceToggle from "./components/SourceToggle";
-import ScraperWarningToggle from "./components/ScraperWarningToggle";
+import ScraperWarningToggle, { type FailedScraper } from "./components/ScraperWarningToggle";
 import NotificationContainer from "./components/NotificationContainer";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { useApplicationTracker } from "./hooks/useApplicationTracker";
+import { useNotifications } from "./contexts/NotificationContext";
 import styles from "./App.module.css";
 import type { FeedType } from "./components/FeedToggle";
 
@@ -38,7 +39,7 @@ function AppContent() {
   const [jobsData, setJobsData] = useState<JobsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingState, setLoadingState] = useState<'idle' | 'scraping' | 'fetching' | 'analyzing'>('idle');
-  const [failedScrapers, setFailedScrapers] = useState<string[]>([]);
+  const [failedScrapers, setFailedScrapers] = useState<(string | FailedScraper)[]>([]);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [selectedFeed, setSelectedFeed] = useState<FeedType>("all");
 
@@ -47,6 +48,9 @@ function AppContent() {
 
   const [filterableModules, setFilterableModules] = useState<string[]>([]);
   const [hasScraped, setHasScraped] = useState(false);
+
+  const { addNotification } = useNotifications();
+  
 
   const [filters, setFilters] = useState({
     page: 1,
@@ -214,6 +218,12 @@ function AppContent() {
       const data = await res.json();
       if (data.failed_scrapers && data.failed_scrapers.length > 0) {
         setFailedScrapers(data.failed_scrapers);
+        addNotification({
+          type: 'error',
+          title: 'Scraping Request Failed',
+          message: 'Some modules failed to scrape. Check the failed scrapers list for details.',
+          duration: 5000,
+        });
       }
       setFilters((prev) => ({ ...prev, page: 1 }));
       await fetchJobs();
@@ -380,7 +390,7 @@ function AppContent() {
               </p>
 
               <SourceToggle />
-              <ScraperWarningToggle />
+              <ScraperWarningToggle failedScrapers={failedScrapers} />
 
               <p className={styles.warning}>⚠ Scrape all these modules can take a while. You can select specific modules to scrape if you want to save time.</p>
 
@@ -426,12 +436,6 @@ function AppContent() {
                   Upload CV
                 </button>
               </div>
-
-              {failedScrapers.length > 0 && (
-                <p className={styles.failedScrapers}>
-                  ⚠ Scrapers failed: {failedScrapers.join(", ")}
-                </p>
-              )}
             </div>
 
             <div className={styles.content}>

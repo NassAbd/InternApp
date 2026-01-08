@@ -6,6 +6,7 @@ interface UserProfile {
     tags: string[];
     location?: string;
     groq_api_key?: string;
+    use_for_scraper_fix?: boolean;
 }
 
 interface ProfileManagerProps {
@@ -269,7 +270,7 @@ export function ProfileManager({ onClose, onProfileUpdate }: ProfileManagerProps
                 <div className={styles.section}>
                     <h3 className={styles.sectionTitle}>Groq API Key (Optional)</h3>
                     <p className={styles.sectionDescription}>
-                        Provide your Groq API key to enable CV parsing functionality:
+                        Provide your Groq API key to enable CV parsing and AI-powered scraper diagnosis:
                     </p>
 
                     <input
@@ -281,8 +282,28 @@ export function ProfileManager({ onClose, onProfileUpdate }: ProfileManagerProps
                     />
 
                     <p className={styles.apiKeyNote}>
-                        Your API key is stored locally and only used for CV analysis.
+                        Your API key is stored locally and used for CV analysis and diagnosing broken scrapers.
                     </p>
+
+                    <div style={{ marginTop: '15px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                            <input
+                                type="checkbox"
+                                checked={profile.use_for_scraper_fix || false}
+                                onChange={(e) => setProfile(prev => ({
+                                    ...prev,
+                                    use_for_scraper_fix: e.target.checked
+                                }))}
+                                style={{ marginRight: '10px', width: '16px', height: '16px' }}
+                            />
+                            <span style={{ fontWeight: 500, color: '#374151' }}>
+                                Enable AI diagnosis for broken scrapers
+                            </span>
+                        </label>
+                        <p className={styles.apiKeyNote} style={{ marginTop: '5px', marginLeft: '26px' }}>
+                            If enabled, the system will use your API key to automatically analyze scraper errors and suggest fixes.
+                        </p>
+                    </div>
                 </div>
 
                 {/* Action Buttons */}

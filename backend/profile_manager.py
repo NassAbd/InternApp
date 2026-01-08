@@ -25,7 +25,8 @@ class ProfileManager:
         self._default_profile = {
             "tags": [],
             "location": None,
-            "groq_api_key": None
+            "groq_api_key": None,
+            "use_for_scraper_fix": False
         }
     
     def loadProfile(self) -> Dict[str, Any]:
@@ -177,5 +178,14 @@ class ProfileManager:
                 validated["groq_api_key"] = profile["groq_api_key"]
             else:
                 raise ValueError("Groq API key must be a string or None")
+        
+        # Validate use_for_scraper_fix
+        if "use_for_scraper_fix" in profile:
+            if isinstance(profile["use_for_scraper_fix"], bool):
+                validated["use_for_scraper_fix"] = profile["use_for_scraper_fix"]
+            elif profile["use_for_scraper_fix"] is None:
+                validated["use_for_scraper_fix"] = False
+            else:
+                raise ValueError("use_for_scraper_fix must be a boolean")
         
         return validated

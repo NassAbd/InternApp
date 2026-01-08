@@ -37,15 +37,23 @@ async def fetch_jobs():
         for card in cards:
             link_tag = await card.query_selector("a.job-ad-card__link")
             if not link_tag:
-                continue
+                raise ValueError("Could not find job link element (a.job-ad-card__link)")
 
             link = await link_tag.get_attribute("href")
+            if not link:
+                 raise ValueError("Job link is empty")
+                 
             if link and link.startswith("/"):
                 link = CNES_BASE_URL + link
 
             title_el = await card.query_selector("h4.job-ad-card__description-title")
-            title = await title_el.text_content() if title_el else None
+            if not title_el:
+                 raise ValueError("Could not find job title element (h4.job-ad-card__description-title)")
+                 
+            title = await title_el.text_content()
             title = title.strip() if title else None
+            if not title:
+                 raise ValueError("Job title is empty")
 
             # Footer : localisation, contrat, domaine
             footer_items = await card.query_selector_all("ul.job-ad-card__description__footer li")
@@ -53,6 +61,9 @@ async def fetch_jobs():
             if len(footer_items) >= 1:
                 location = await footer_items[0].text_content()
                 location = location.strip()
+            
+            if not location:
+                 raise ValueError("Location not found in footer items")
 
             jobs.append({
                 "module": "cnes",

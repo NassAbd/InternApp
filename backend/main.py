@@ -13,6 +13,9 @@ from profile_manager import ProfileManager
 from scoring_engine import ScoringEngine
 from cv_parser import CVParser
 from application_manager import ApplicationManager
+from maintenance_service import MaintenanceService
+import inspect
+import traceback
 # -------------------
 
 app = FastAPI()
@@ -23,6 +26,7 @@ profile_manager = ProfileManager()
 scoring_engine = ScoringEngine()
 cv_parser = CVParser()
 application_manager = ApplicationManager()
+maintenance_service = MaintenanceService()
 
 origins = [
     "http://localhost:5173",
@@ -194,7 +198,7 @@ def reset_profile():
 @app.post("/profile/parse-cv")
 async def parse_cv(
     file: UploadFile = File(...),
-    api_key: str = Form(...),
+    api_key: str = Form(None),
     merge_with_existing: bool = Form(True)
 ):
     """
@@ -202,7 +206,7 @@ async def parse_cv(
     
     Args:
         file: PDF file upload
-        api_key: Groq API key for LLM analysis
+        api_key: Groq API key for LLM analysis (optional if stored in profile)
         merge_with_existing: Whether to merge with existing profile tags
         
     Returns:
@@ -215,8 +219,18 @@ async def parse_cv(
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
     
-    if not api_key.strip():
-        raise HTTPException(status_code=400, detail="Groq API key is required")
+    # Determine API key to use
+    final_api_key = api_key
+    if not final_api_key or not final_api_key.strip():
+        # Try to load from profile
+        try:
+            profile = profile_manager.loadProfile()
+            final_api_key = profile.get("groq_api_key")
+        except Exception:
+            pass
+            
+    if not final_api_key or not final_api_key.strip():
+        raise HTTPException(status_code=400, detail="Groq API key is required. Please enter it in Profile Manager.")
     
     try:
         # Read file content
@@ -226,7 +240,7 @@ async def parse_cv(
             raise HTTPException(status_code=400, detail="Uploaded file is empty")
         
         # Parse CV and extract tags
-        extracted_tags, cv_text = cv_parser.parseCV(pdf_content, api_key.strip())
+        extracted_tags, cv_text = cv_parser.parseCV(pdf_content, final_api_key.strip())
         
         # Load current profile
         current_profile = profile_manager.loadProfile()
@@ -238,10 +252,11 @@ async def parse_cv(
         else:
             final_tags = extracted_tags
         
-        # Update profile with new tags and API key
+        # Update profile with new tags and API key (only if provided explicitly)
         updated_profile = current_profile.copy()
         updated_profile["tags"] = final_tags
-        updated_profile["groq_api_key"] = api_key.strip()
+        if api_key and api_key.strip():
+            updated_profile["groq_api_key"] = api_key.strip()
         
         # Save updated profile
         profile_manager.saveProfile(updated_profile)
@@ -508,7 +523,42 @@ async def _scrape_modules(modules: list[str]):
         if isinstance(result, Exception):
             # The scraper failed (exception raised)
             print(f"Error scraper {module}: {result}")
-            failed_scrapers.append(module)
+            
+            failure_info = {
+                "module": module,
+                "error": str(result),
+                "diagnosis": None
+            }
+            
+            # Try to diagnose if we have an API key and usage is enabled
+            try:
+                profile = profile_manager.loadProfile()
+                api_key = profile.get("groq_api_key")
+                use_for_fix = profile.get("use_for_scraper_fix", False)
+                
+                if api_key and use_for_fix:
+                    scraper_module = ACTIVE_SCRAPERS.get(module)
+                    if scraper_module:
+                        try:
+                            # If it's a module
+                            source_code = inspect.getsource(scraper_module)
+                        except TypeError:
+                            # Fallback if it's a class instance
+                            source_code = inspect.getsource(scraper_module.__class__)
+                            
+                        error_log = "".join(traceback.format_exception(type(result), result, result.__traceback__))
+                        
+                        diagnosis = maintenance_service.diagnose_failure(
+                            module_name=module,
+                            error_log=error_log,
+                            source_code=source_code,
+                            api_key=api_key
+                        )
+                        failure_info["diagnosis"] = diagnosis
+            except Exception as e:
+                print(f"Diagnosis failed for {module}: {e}")
+                
+            failed_scrapers.append(failure_info)
         else:
             # Success : 'result' is site_jobs
             site_jobs = result
