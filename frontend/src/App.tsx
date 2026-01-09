@@ -50,7 +50,7 @@ function AppContent() {
   const [hasScraped, setHasScraped] = useState(false);
 
   const { addNotification } = useNotifications();
-  
+
 
   const [filters, setFilters] = useState({
     page: 1,
@@ -297,22 +297,7 @@ function AppContent() {
   }, [showProfileManager, showCVUploader]);
 
   // Build a derived tracked set that includes both backend IDs and frontend IDs (btoa(link))
-  const derivedTrackedJobs: Set<string> = (() => {
-    const s = new Set<string>(applicationTracker.state.trackedJobs);
-    try {
-      for (const app of applicationTracker.state.applications) {
-        try {
-          const btoaId = btoa(app.job.link).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
-          s.add(btoaId);
-        } catch (_) {
-          // ignore encoding issues
-        }
-      }
-    } catch (_) {
-      // ignore
-    }
-    return s;
-  })();
+
 
   // Also build a set of tracked links for strict matching
   const trackedLinks: Set<string> = (() => {
@@ -360,175 +345,175 @@ function AppContent() {
   };
 
   return (
-      <div className={styles.container}>
-        <NotificationContainer />
+    <div className={styles.container}>
+      <NotificationContainer />
 
-        {/* Navigation */}
-        <div className={styles.navigation}>
-          <button
-            onClick={navigateToFeed}
-            className={`${styles.navButton} ${currentView === 'feed' ? styles.navButtonActive : ''}`}
-          >
-            Job Feed
-          </button>
-          <button
-            onClick={navigateToDashboard}
-            className={`${styles.navButton} ${currentView === 'dashboard' ? styles.navButtonActive : ''}`}
-          >
-            Dashboard
-          </button>
-        </div>
+      {/* Navigation */}
+      <div className={styles.navigation}>
+        <button
+          onClick={navigateToFeed}
+          className={`${styles.navButton} ${currentView === 'feed' ? styles.navButtonActive : ''}`}
+        >
+          Job Feed
+        </button>
+        <button
+          onClick={navigateToDashboard}
+          className={`${styles.navButton} ${currentView === 'dashboard' ? styles.navButtonActive : ''}`}
+        >
+          Dashboard
+        </button>
+      </div>
 
-        {currentView === 'dashboard' ? (
-          <ApplicationDashboard />
-        ) : (
-          <>
-            <div className={styles.header}>
-              <h1 className={styles.title}>Internships</h1>
-              <p className={styles.subtitle}>
-                Scrapes internship listings, highlights newly published offers, and makes them easy to explore.
-              </p>
+      {currentView === 'dashboard' ? (
+        <ApplicationDashboard />
+      ) : (
+        <>
+          <div className={styles.header}>
+            <h1 className={styles.title}>Internships</h1>
+            <p className={styles.subtitle}>
+              Scrapes internship listings, highlights newly published offers, and makes them easy to explore.
+            </p>
 
-              <SourceToggle />
-              <ScraperWarningToggle failedScrapers={failedScrapers} />
+            <SourceToggle />
+            <ScraperWarningToggle failedScrapers={failedScrapers} />
 
-              <p className={styles.warning}>⚠ Scrape all these modules can take a while. You can select specific modules to scrape if you want to save time.</p>
+            <p className={styles.warning}>⚠ Scrape all these modules can take a while. You can select specific modules to scrape if you want to save time.</p>
 
-              <div className={styles.modulesContainer}>
-                {availableScrapeModules.length === 0 ? (
-                  <p>Loading modules...</p>
-                ) : (
-                  availableScrapeModules.map((m) => (
-                    <label key={m} className={styles.moduleCheckbox}>
-                      <input
-                        type="checkbox"
-                        value={m}
-                        checked={selectedModules.includes(m)}
-                        onChange={() => toggleModule(m)}
-                        className={styles.hiddenCheckbox}
-                      />
-                      <span className={styles.moduleLabelText}>{m}</span>
-                    </label>
-                  ))
-                )}
-              </div>
-
-              <button
-                onClick={handleScrape}
-                disabled={loading}
-                className={styles.scrapeButton}
-              >
-                {loadingState === 'scraping' ? "Scraping..." : "Scrape"}
-              </button>
-
-              {/* Profile Management Buttons */}
-              <div className={styles.profileButtons}>
-                <button
-                  onClick={() => setShowProfileManager(true)}
-                  className={styles.profileButton}
-                >
-                  Manage Profile
-                </button>
-                <button
-                  onClick={() => setShowCVUploader(true)}
-                  className={styles.cvButton}
-                >
-                  Upload CV
-                </button>
-              </div>
-            </div>
-
-            <div className={styles.content}>
-              {loadingState === 'scraping' ? (
-                <>
-                  <div className={styles.loader}></div>
-                  <p>Go get a tea, scraping these sources will take a while...</p>
-                </>
-              ) : loadingState === 'fetching' ? (
-                <div className={styles.fetchingLoader}>
-                  <div className={styles.progressBar}>
-                    <div className={styles.progressFill}></div>
-                  </div>
-                  <p>Updating feed...</p>
-                </div>
-              ) : loading || !jobsData ? (
-                <>
-                  <div className={styles.loader}></div>
-                  <p>Loading...</p>
-                </>
+            <div className={styles.modulesContainer}>
+              {availableScrapeModules.length === 0 ? (
+                <p>Loading modules...</p>
               ) : (
-                <div className={styles.jobsContainer}>
-                  <FeedToggle
-                    selectedFeed={selectedFeed}
-                    onFeedChange={handleFeedChange}
-                    hasPersonalizedResults={jobsData?.total_items ? jobsData.total_items > 0 : false}
-                  />
-
-                  <JobsTable
-                    jobsData={jobsData}
-                    filters={filters}
-                    onFilterChange={handleFilterChange}
-                    availableModules={filterableModules}
-                    pendingSearchTerm={pendingSearchTerm}
-                    onPendingSearchChange={setPendingSearchTerm}
-                    onSearchClick={handleSearchClick}
-                    isPersonalizedFeed={selectedFeed === "for-you"}
-                    trackedJobs={derivedTrackedJobs}
-                    trackedLinks={trackedLinks}
-                    onTrackJob={applicationTracker.trackJob}
-                    onUntrackJob={onUntrackJobProxy}
-                    trackingLoading={applicationTracker.state.loading}
-                  />
-
-                  {isDatabaseEmpty && (
-                    <p className={styles.noJobsMessage}>
-                      No jobs scraped yet. Click 'Scrape'...
-                    </p>
-                  )}
-
-                  {isFilteredButEmpty && (
-                    <p className={styles.noJobsMessage}>
-                      No jobs match your current search criteria...
-                    </p>
-                  )}
-                </div>
+                availableScrapeModules.map((m) => (
+                  <label key={m} className={styles.moduleCheckbox}>
+                    <input
+                      type="checkbox"
+                      value={m}
+                      checked={selectedModules.includes(m)}
+                      onChange={() => toggleModule(m)}
+                      className={styles.hiddenCheckbox}
+                    />
+                    <span className={styles.moduleLabelText}>{m}</span>
+                  </label>
+                ))
               )}
             </div>
-          </>
-        )}
 
-        {/* Profile Manager Overlay */}
-        {showProfileManager && (
-          <div
-            className={styles.overlay}
-            onClick={(e) => handleOverlayClick(e, () => setShowProfileManager(false))}
-          >
-            <div className={styles.overlayContent}>
-              <ProfileManager
-                onClose={() => setShowProfileManager(false)}
-                onProfileUpdate={handleProfileUpdate}
-              />
+            <button
+              onClick={handleScrape}
+              disabled={loading}
+              className={styles.scrapeButton}
+            >
+              {loadingState === 'scraping' ? "Scraping..." : "Scrape"}
+            </button>
+
+            {/* Profile Management Buttons */}
+            <div className={styles.profileButtons}>
+              <button
+                onClick={() => setShowProfileManager(true)}
+                className={styles.profileButton}
+              >
+                Manage Profile
+              </button>
+              <button
+                onClick={() => setShowCVUploader(true)}
+                className={styles.cvButton}
+              >
+                Upload CV
+              </button>
             </div>
           </div>
-        )}
 
-        {/* CV Uploader Overlay */}
-        {showCVUploader && (
-          <div
-            className={styles.overlay}
-            onClick={(e) => handleOverlayClick(e, () => setShowCVUploader(false))}
-          >
-            <div className={styles.overlayContent}>
-              <CVUploader
-                onUploadSuccess={handleCVUploadSuccess}
-                onClose={() => setShowCVUploader(false)}
-                onAnalysisStart={handleCVAnalysisStart}
-                onAnalysisEnd={handleCVAnalysisEnd}
-              />
-            </div>
+          <div className={styles.content}>
+            {loadingState === 'scraping' ? (
+              <>
+                <div className={styles.loader}></div>
+                <p>Go get a tea, scraping these sources will take a while...</p>
+              </>
+            ) : loadingState === 'fetching' ? (
+              <div className={styles.fetchingLoader}>
+                <div className={styles.progressBar}>
+                  <div className={styles.progressFill}></div>
+                </div>
+                <p>Updating feed...</p>
+              </div>
+            ) : loading || !jobsData ? (
+              <>
+                <div className={styles.loader}></div>
+                <p>Loading...</p>
+              </>
+            ) : (
+              <div className={styles.jobsContainer}>
+                <FeedToggle
+                  selectedFeed={selectedFeed}
+                  onFeedChange={handleFeedChange}
+                  hasPersonalizedResults={jobsData?.total_items ? jobsData.total_items > 0 : false}
+                />
+
+                <JobsTable
+                  jobsData={jobsData}
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                  availableModules={filterableModules}
+                  pendingSearchTerm={pendingSearchTerm}
+                  onPendingSearchChange={setPendingSearchTerm}
+                  onSearchClick={handleSearchClick}
+                  isPersonalizedFeed={selectedFeed === "for-you"}
+
+                  trackedLinks={trackedLinks}
+                  onTrackJob={applicationTracker.trackJob}
+                  onUntrackJob={onUntrackJobProxy}
+                  trackingLoading={applicationTracker.state.loading}
+                />
+
+                {isDatabaseEmpty && (
+                  <p className={styles.noJobsMessage}>
+                    No jobs scraped yet. Click 'Scrape'...
+                  </p>
+                )}
+
+                {isFilteredButEmpty && (
+                  <p className={styles.noJobsMessage}>
+                    No jobs match your current search criteria...
+                  </p>
+                )}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
+
+      {/* Profile Manager Overlay */}
+      {showProfileManager && (
+        <div
+          className={styles.overlay}
+          onClick={(e) => handleOverlayClick(e, () => setShowProfileManager(false))}
+        >
+          <div className={styles.overlayContent}>
+            <ProfileManager
+              onClose={() => setShowProfileManager(false)}
+              onProfileUpdate={handleProfileUpdate}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* CV Uploader Overlay */}
+      {showCVUploader && (
+        <div
+          className={styles.overlay}
+          onClick={(e) => handleOverlayClick(e, () => setShowCVUploader(false))}
+        >
+          <div className={styles.overlayContent}>
+            <CVUploader
+              onUploadSuccess={handleCVUploadSuccess}
+              onClose={() => setShowCVUploader(false)}
+              onAnalysisStart={handleCVAnalysisStart}
+              onAnalysisEnd={handleCVAnalysisEnd}
+            />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

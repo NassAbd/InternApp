@@ -40,7 +40,6 @@ async def fetch_jobs():
         if is_visible:
             await cookie_locator.click(force=True)
             
-            # CORRECTION: use locator.wait_for(state='hidden')
             try:
                 await cookie_locator.wait_for(state='hidden', timeout=5000) 
             except TimeoutError:

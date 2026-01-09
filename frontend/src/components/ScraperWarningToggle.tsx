@@ -37,14 +37,12 @@ export default function ScraperWarningToggle({ failedScrapers = [] }: ScraperWar
           color: hasFailures ? '#ef4444' : undefined 
         }}
       >
-        {/* Title is now fixed as requested */}
         Issues and Improvements {hasFailures && `(${normalizedFailures.length})`} {open ? "▲" : "▼"}
       </h2>
       
       {open && (
         <div className={styles.sourcesText} style={{ textAlign: 'left', maxWidth: '800px' }}>
           
-          {/* 1. Permanent Part: Always displayed */}
           <p className={styles.sourcesContainer} style={{ marginBottom: hasFailures ? '1.5rem' : '0' }}>
             ⚠ Some scrapers may fail or miss certain job listings due to site
             changes. <br /> If you encounter any issues or have suggestions for
@@ -60,7 +58,6 @@ export default function ScraperWarningToggle({ failedScrapers = [] }: ScraperWar
             .
           </p>
 
-          {/* 2. Failures Part: Displayed below only if hasFailures is true */}
           {hasFailures && (
             <div>
               <p style={{ fontWeight: 'bold', marginBottom: '0.5rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>

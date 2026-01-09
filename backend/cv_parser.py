@@ -282,11 +282,3 @@ class CVParser:
         
         return sorted(list(all_tags))
     
-    def getAvailableCategories(self) -> Dict[str, List[str]]:
-        """
-        Get the predefined categories and their keywords.
-        
-        Returns:
-            Dictionary of categories and their associated keywords
-        """
-        return self.predefined_categories.copy()

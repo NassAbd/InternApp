@@ -7,15 +7,6 @@ clean text content, and assign relevant category tags based on keyword matching.
 
 import re
 from typing import Dict, List, Set
-from dataclasses import dataclass
-
-
-@dataclass
-class JobData:
-    """Data structure for job information used in tagging."""
-    title: str
-    description: str = ""
-    location: str = ""
 
 
 class TaggingService:
@@ -58,11 +49,7 @@ class TaggingService:
                 "pmo", "supply chain", "achats", "procurement"
             ]
         }   
-        """internship": [
-            "stage", "intern", "internship", "student", "étudiant", "graduate", "diplômé", "trainee", 
-            "apprentice", "apprenti", "alternance", "junior", "entry", "learning", "apprentissage", 
-            "training", "formation", "education", "éducation", "pfe", "master", "licence"
-        ]"""
+
         
         # Common stop words to remove during text cleaning
         self._stop_words = {
@@ -155,36 +142,4 @@ class TaggingService:
         
         return matching_categories
     
-    def addCustomCategory(self, category_name: str, keywords: List[str]) -> None:
-        """
-        Add a custom category with associated keywords.
-        
-        Args:
-            category_name: Name of the new category
-            keywords: List of keywords for the category
-        """
-        if not category_name or not keywords:
-            return
-        
-        self._category_keywords[category_name.lower()] = [kw.lower() for kw in keywords]
-    
-    def getCategories(self) -> List[str]:
-        """
-        Get list of all available categories.
-        
-        Returns:
-            List of category names
-        """
-        return sorted(list(self._category_keywords.keys()))
-    
-    def getCategoryKeywords(self, category: str) -> List[str]:
-        """
-        Get keywords for a specific category.
-        
-        Args:
-            category: Category name
-            
-        Returns:
-            List of keywords for the category, empty list if category not found
-        """
-        return self._category_keywords.get(category.lower(), [])
+
