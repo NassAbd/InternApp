@@ -24,13 +24,16 @@ async def fetch_arianespace_jobs():
     for li in jobs_container.find_all("li"):
         a = li.find("a", href=True)
         if not a:
-            continue
+            raise ValueError("Could not find job link element (a href)")
 
         title = a.get_text(strip=True)
         if not title:
-            continue
+            raise ValueError("Job title is empty")
 
         link = a["href"]
+        if not link:
+             raise ValueError("Job link attribute is empty")
+             
         if not link.startswith("http"):
             link = INTERNSHIP_ARIANE_SPACE_SEARCH_URL + link
 
@@ -42,6 +45,9 @@ async def fetch_arianespace_jobs():
                 location = spans[2].get_text(strip=True)
             elif len(spans) >= 1:
                 location = spans[-1].get_text(strip=True)
+        
+        if not location:
+             raise ValueError("Could not find location in info_div")
 
         jobs.append({
             "module": "ariane",
@@ -85,18 +91,28 @@ async def fetch_arianegroup_jobs():
             for item in items:
                 a_tag = await item.query_selector("a[data-automation-id='jobTitle']")
                 if not a_tag:
-                    continue
+                    raise ValueError("Could not find job title element (a[data-automation-id='jobTitle'])")
 
                 title = await a_tag.text_content()
                 title = title.strip()
+                if not title:
+                     raise ValueError("Job title is empty")
+
                 link = await a_tag.get_attribute("href")
+                if not link:
+                     raise ValueError("Job link is empty")
+
                 if link and link.startswith("/"):
                     link = base_url + link
 
                 loc_el = await item.query_selector("div[data-automation-id='locations'] dd")
-                location = await loc_el.text_content() if loc_el else None
-                location = location.strip() if location else None
+                if not loc_el:
+                    raise ValueError("Could not find location element (div[data-automation-id='locations'] dd)")
 
+                location = await loc_el.text_content()
+                location = location.strip() if location else None
+                if not location:
+                     raise ValueError("Location is empty")
 
                 jobs.append({
                     "module": "ariane",

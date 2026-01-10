@@ -106,21 +106,7 @@ class StorageManager:
                 backup_path.rename(self.applications_path)
             raise IOError(f"Error saving applications: {e}")
     
-    def validate_application_data(self, data: Dict[str, Any]) -> bool:
-        """
-        Public method to validate application data structure.
-        
-        Args:
-            data: Application data dictionary
-            
-        Returns:
-            True if valid, False otherwise
-        """
-        try:
-            self._validate_application_data(data)
-            return True
-        except ValueError:
-            return False
+
     
     def generate_application_id(self, job: Dict[str, Any]) -> str:
         """

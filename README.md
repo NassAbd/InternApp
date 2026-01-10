@@ -19,6 +19,7 @@ InternApp/
 │  ├─ profile_manager.py     # User profile management
 │  ├─ scoring_engine.py      # Job relevance scoring algorithm
 │  ├─ cv_parser.py           # AI-powered CV analysis
+│  ├─ maintenance_service.py # AI diagnosis for broken scrapers
 │  ├─ tagging_service.py     # Job categorization and tagging
 │  ├─ (jobs.json)            # Persisted job results
 │  ├─ (user_profile.json)    # User preferences and profile data

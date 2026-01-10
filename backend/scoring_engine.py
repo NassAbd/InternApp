@@ -6,15 +6,6 @@ filter out irrelevant jobs, and sort results by relevance score.
 """
 
 from typing import Dict, List, Any, Optional
-from dataclasses import dataclass
-
-
-@dataclass
-class ScoredJob:
-    """Data structure for a job with calculated relevance score."""
-    job_data: Dict[str, Any]
-    match_score: int
-    matching_tags: List[str]
 
 
 class ScoringEngine:
@@ -114,45 +105,7 @@ class ScoringEngine:
         
         return score, matching_tags
     
-    def calculateScore(self, job: Dict[str, Any], user_profile: Dict[str, Any]) -> tuple[int, List[str]]:
-        """
-        Calculate relevance score for a single job based on user profile.
-        
-        Args:
-            job: Job dictionary containing title, location, tags, etc.
-            user_profile: User profile with preferences
-            
-        Returns:
-            Tuple of (score, matching_tags)
-        """
-        score = 0
-        matching_tags = []
-        
-        # Get user preferences
-        user_tags = set(tag.lower() for tag in user_profile.get("tags", []))
-        user_location = user_profile.get("location", "").lower() if user_profile.get("location") else None
-        
-        # Score based on tag matches
-        job_tags = job.get("tags", [])
-        if job_tags and user_tags:
-            job_tags_lower = set(tag.lower() for tag in job_tags)
-            matched_tags = user_tags.intersection(job_tags_lower)
-            
-            if matched_tags:
-                score += len(matched_tags) * self.TAG_MATCH_POINTS
-                matching_tags = list(matched_tags)
-        
-        # Score based on location match
-        if user_location and job.get("location"):
-            job_location = job["location"].lower()
-            if user_location in job_location or job_location in user_location:
-                score += self.LOCATION_MATCH_POINTS
-        
-        # Bonus for new jobs
-        if job.get("new", False):
-            score += self.NEW_JOB_BONUS_POINTS
-        
-        return score, matching_tags
+
     
     def filterAndSort(self, scored_jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -176,75 +129,5 @@ class ScoringEngine:
         
         return filtered_jobs
     
-    def getScoreBreakdown(self, job: Dict[str, Any], user_profile: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Get detailed breakdown of how a job's score was calculated.
-        
-        Args:
-            job: Job dictionary
-            user_profile: User profile
-            
-        Returns:
-            Dictionary with score breakdown details
-        """
-        breakdown = {
-            "total_score": 0,
-            "tag_matches": [],
-            "tag_score": 0,
-            "location_match": False,
-            "location_score": 0,
-            "new_job_bonus": False,
-            "new_job_score": 0
-        }
-        
-        user_tags = set(tag.lower() for tag in user_profile.get("tags", []))
-        user_location = user_profile.get("location", "").lower() if user_profile.get("location") else None
-        
-        # Tag scoring breakdown
-        job_tags = job.get("tags", [])
-        if job_tags and user_tags:
-            job_tags_lower = set(tag.lower() for tag in job_tags)
-            matched_tags = user_tags.intersection(job_tags_lower)
-            
-            if matched_tags:
-                breakdown["tag_matches"] = list(matched_tags)
-                breakdown["tag_score"] = len(matched_tags) * self.TAG_MATCH_POINTS
-        
-        # Location scoring breakdown
-        if user_location and job.get("location"):
-            job_location = job["location"].lower()
-            if user_location in job_location or job_location in user_location:
-                breakdown["location_match"] = True
-                breakdown["location_score"] = self.LOCATION_MATCH_POINTS
-        
-        # New job bonus breakdown
-        if job.get("new", False):
-            breakdown["new_job_bonus"] = True
-            breakdown["new_job_score"] = self.NEW_JOB_BONUS_POINTS
-        
-        # Calculate total
-        breakdown["total_score"] = (
-            breakdown["tag_score"] + 
-            breakdown["location_score"] + 
-            breakdown["new_job_score"]
-        )
-        
-        return breakdown
+
     
-    def updateScoringWeights(self, tag_points: Optional[int] = None, 
-                           location_points: Optional[int] = None, 
-                           new_job_points: Optional[int] = None) -> None:
-        """
-        Update scoring weights for different factors.
-        
-        Args:
-            tag_points: Points awarded per matching tag
-            location_points: Points awarded for location match
-            new_job_points: Bonus points for new jobs
-        """
-        if tag_points is not None:
-            self.TAG_MATCH_POINTS = max(0, tag_points)
-        if location_points is not None:
-            self.LOCATION_MATCH_POINTS = max(0, location_points)
-        if new_job_points is not None:
-            self.NEW_JOB_BONUS_POINTS = max(0, new_job_points)

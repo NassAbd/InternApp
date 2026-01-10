@@ -39,7 +39,7 @@ type Props = {
   onSearchClick: () => void;
   isPersonalizedFeed?: boolean;
   // Application tracking props
-  trackedJobs?: Set<string>;
+
   trackedLinks?: Set<string>;
   onTrackJob?: (job: Job) => void;
   onUntrackJob?: (jobId: string) => void;
@@ -97,7 +97,7 @@ export function JobsTable({
   onPendingSearchChange,
   onSearchClick,
   isPersonalizedFeed = false,
-  trackedJobs = new Set(),
+
   trackedLinks = new Set(),
   onTrackJob,
   onUntrackJob,

@@ -23,7 +23,6 @@ interface CVUploaderProps {
 
 export function CVUploader({ onUploadSuccess, onClose, onAnalysisStart, onAnalysisEnd }: CVUploaderProps) {
     const [file, setFile] = useState<File | null>(null);
-    const [apiKey, setApiKey] = useState("");
     const [mergeWithExisting, setMergeWithExisting] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -76,8 +75,8 @@ export function CVUploader({ onUploadSuccess, onClose, onAnalysisStart, onAnalys
     };
 
     const handleUpload = async () => {
-        if (!file || !apiKey.trim()) {
-            setError("Please select a PDF file and provide your Groq API key");
+        if (!file) {
+            setError("Please select a PDF file");
             return;
         }
 
@@ -86,13 +85,12 @@ export function CVUploader({ onUploadSuccess, onClose, onAnalysisStart, onAnalys
             setError(null);
             setResult(null);
 
-            // Notify parent that analysis is starting
             onAnalysisStart?.();
 
             const formData = new FormData();
             formData.append("file", file);
-            formData.append("api_key", apiKey.trim());
             formData.append("merge_with_existing", mergeWithExisting.toString());
+            // Note: api_key is no longer sent from frontend, backend should retrieve it from user_profile.json
 
             const response = await fetch("http://localhost:8000/profile/parse-cv", {
                 method: "POST",
@@ -107,7 +105,6 @@ export function CVUploader({ onUploadSuccess, onClose, onAnalysisStart, onAnalys
             const uploadResult: CVUploadResult = await response.json();
             setResult(uploadResult);
 
-            // Show global notification
             addNotification({
                 type: 'success',
                 title: 'CV Analysis Complete!',
@@ -115,7 +112,6 @@ export function CVUploader({ onUploadSuccess, onClose, onAnalysisStart, onAnalys
                 duration: 5000
             });
 
-            // Call success callback if provided
             if (onUploadSuccess) {
                 onUploadSuccess(uploadResult);
             }
@@ -128,17 +124,14 @@ export function CVUploader({ onUploadSuccess, onClose, onAnalysisStart, onAnalys
                 message: `${err instanceof Error ? err.message : "Failed to upload CV"}`,
                 duration: 5000
             });
-            //setError(err instanceof Error ? err.message : "Failed to upload CV");
         } finally {
             setUploading(false);
-            // Notify parent that analysis is ending
             onAnalysisEnd?.();
         }
     };
 
     const handleReset = () => {
         setFile(null);
-        setApiKey("");
         setError(null);
         setResult(null);
         if (fileInputRef.current) {
@@ -159,7 +152,6 @@ export function CVUploader({ onUploadSuccess, onClose, onAnalysisStart, onAnalys
                 )}
             </div>
 
-            {/* Error Message */}
             {error && (
                 <div className={styles.errorMessage}>
                     <span>{error}</span>
@@ -167,7 +159,6 @@ export function CVUploader({ onUploadSuccess, onClose, onAnalysisStart, onAnalys
                 </div>
             )}
 
-            {/* Success Result */}
             {result && (
                 <div className={styles.successResult}>
                     <h3 className={styles.resultTitle}>✅ CV Analysis Complete!</h3>
@@ -215,35 +206,15 @@ export function CVUploader({ onUploadSuccess, onClose, onAnalysisStart, onAnalys
                 </div>
             )}
 
-            {/* Upload Form */}
             {!result && (
                 <div className={styles.uploadForm}>
-                    {/* API Key Input */}
-                    <div className={styles.section}>
-                        <h3 className={styles.sectionTitle}>Groq API Key</h3>
-                        <p className={styles.sectionDescription}>
-                            Enter your Groq API key to enable CV analysis:
-                        </p>
-
-                        <input
-                            type="password"
-                            value={apiKey}
-                            onChange={(e) => setApiKey(e.target.value)}
-                            placeholder="Enter your Groq API key"
-                            className={styles.apiKeyInput}
-                            disabled={uploading}
-                        />
-
-                        <p className={styles.apiKeyNote}>
-                            Your API key is used only for this analysis and stored securely in your profile.
-                        </p>
-                    </div>
-
-                    {/* File Upload */}
                     <div className={styles.section}>
                         <h3 className={styles.sectionTitle}>Upload CV (PDF)</h3>
+                        <h4>
+                            Before Uploading, please ensure to set your Groq API key in your profile.
+                        </h4>
                         <p className={styles.sectionDescription}>
-                            Select or drag & drop your CV in PDF format:
+                            Select or drag & drop your CV in PDF format to extract your skills:
                         </p>
 
                         <div
@@ -283,7 +254,6 @@ export function CVUploader({ onUploadSuccess, onClose, onAnalysisStart, onAnalys
                         </div>
                     </div>
 
-                    {/* Merge Option */}
                     <div className={styles.section}>
                         <label className={styles.checkboxLabel}>
                             <input
@@ -305,7 +275,6 @@ export function CVUploader({ onUploadSuccess, onClose, onAnalysisStart, onAnalys
                         </p>
                     </div>
 
-                    {/* Upload Progress */}
                     {uploading && (
                         <div className={styles.uploadProgress}>
                             <div className={styles.progressBar}>
@@ -317,11 +286,10 @@ export function CVUploader({ onUploadSuccess, onClose, onAnalysisStart, onAnalys
                         </div>
                     )}
 
-                    {/* Action Buttons */}
                     <div className={styles.actions}>
                         <button
                             onClick={handleUpload}
-                            disabled={!file || !apiKey.trim() || uploading}
+                            disabled={!file || uploading}
                             className={styles.uploadButton}
                         >
                             {uploading ? "Analyzing CV..." : "Analyze CV"}
