@@ -182,6 +182,17 @@ If a scraper fails during execution (raises an exception):
 2.  The module name is added to the `failed_scrapers` list in the API response.
 3.  The Frontend displays a warning message: "⚠ Scrapers failed: [module_name]" to inform the user.
 
+### AI-Powered Diagnostics
+The system includes a self-healing capability powered by LLM (Groq/Llama 3):
+
+1.  **Automatic Analysis**: When a scraper fails, `MaintenanceService` captures the error log and the source code of the failing module.
+2.  **Diagnosis**: It sends this context to the Groq API to request an explanation and a code fix.
+3.  **Suggestion**: The diagnosis and suggested fix are returned in the `failed_scrapers` payload and displayed in the frontend "Issues and Improvements" warning toggle.
+
+**Requirements**:
+- A valid Groq API key must be saved in the user profile.
+- The `MaintenanceService` is automatically triggered for any exception raised within a scraper module.
+
 ## Maintaining Existing Scrapers
 
 Scrapers can break because websites change their structure (HTML, CSS selectors...).
