@@ -71,7 +71,7 @@ InternApp/
 
 ### 🛠️ System Features
 - **Feedback Loop**: "Issues and Improvements" toggle to report broken scrapers or suggest features.
-- ⏳**AI-Powered Diagnostics**: Automatically generates detailed error analysis and fix suggestions using Groq LLM when a scraper fails.
+- **AI-Powered Diagnostics**: Automatically generates detailed error analysis and fix suggestions using Groq LLM when a scraper fails.
 
 ## Getting Started
 
@@ -260,7 +260,16 @@ Triggers a scrape of all available modules.
   {
     "added": 5,
     "total": 120,
-    "failed_scrapers": ["cnes"]
+    "failed_scrapers": [
+      {
+        "module": "cnes",
+        "error": "Error details...",
+        "diagnosis": {
+          "explanation": "Selector not found",
+          "suggested_fix": "..."
+        }
+      }
+    ]
   }
   ```
 
