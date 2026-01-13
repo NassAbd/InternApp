@@ -12,19 +12,19 @@ A full‑stack project to scrape internship listings from multiple sources and b
 InternApp/
 ├─ backend/
 │  ├─ main.py                # FastAPI app with routes
+│  ├─ database.py            # Database connection & session handling
+│  ├─ models.py              # SQLAlchemy DB models
+│  ├─ repositories/          # CRUD operations (Job, Profile, Application)
 │  ├─ scrapers/              # Site-specific scrapers (e.g. Ariane, Airbus)
 │  ├─ config.py              # Configuration and scraper registration
 │  ├─ application_manager.py # Job application tracking logic
-│  ├─ storage_manager.py     # Data persistence and validation
 │  ├─ profile_manager.py     # User profile management
 │  ├─ scoring_engine.py      # Job relevance scoring algorithm
 │  ├─ cv_parser.py           # AI-powered CV analysis
 │  ├─ maintenance_service.py # AI diagnosis for broken scrapers
 │  ├─ tagging_service.py     # Job categorization and tagging
-│  ├─ (jobs.json)            # Persisted job results
-│  ├─ (user_profile.json)    # User preferences and profile data
-│  ├─ (user_applications.json) # Tracked job applications
-│  ├─ requirements.txt       # Python deps (FastAPI, Playwright, etc.)
+│  ├─ (InternApp.db)         # SQLite Database (Jobs, Profile, Applications)
+│  ├─ requirements.txt       # Python deps (FastAPI, SQLAlchemy, Playwright)
 │  └─ Dockerfile             # Uvicorn dev server, Playwright base image
 ├─ frontend/
 │  ├─ src/
@@ -40,7 +40,7 @@ InternApp/
 
 ## Tech Stack
 
-- **Backend**: `FastAPI`, `Uvicorn`, `Playwright` (Python), `httpx` (async requests), `BeautifulSoup4`, `Groq API` (AI)
+- **Backend**: `FastAPI`, `Uvicorn`, `SQLAlchemy` (SQLite), `Playwright` (Python), `httpx` (async requests), `BeautifulSoup4`, `Groq API` (AI)
 - **Frontend**: `React`, `Vite`, `TypeScript`, `CSS Modules`
 - **Dev/Runtime**: Docker, docker-compose
 
@@ -254,7 +254,7 @@ Removes an application from tracking.
 
 - **`POST /scrape`**
 Triggers a scrape of all available modules.
-  - Merges new jobs with existing ones, marks them as `new: true`, and saves to `jobs.json`.
+  - Merges new jobs with existing ones, marks them as `new: true`, and saves to the database.
   - **Response**:
   ```json
   {
@@ -342,12 +342,11 @@ Triggers a scrape of only the specified modules.
 
 ## Data and Persistence
 
-- **Job Data**: The backend stores results in `backend/jobs.json`.
-- **User Profile**: Profile data persisted in `backend/user_profile.json`.
-- **Application Tracking**: Tracked applications stored in `backend/user_applications.json` with backup system.
-- **Deduplication**: Existing links are deduplicated on subsequent scrapes; existing items have `new: false` while newly found items are marked `new: true`.
-- **Profile Persistence**: User preferences survive browser sessions and application restarts.
-- **Application Persistence**: Tracked applications and their status updates are preserved across sessions with automatic backup/restore functionality.
+- **Job Data**: The backend stores results in the SQLite database `backend/InternApp.db`.
+- **User Profile**: Profile data persisted in the database table `user_profile`.
+- **Application Tracking**: Tracked applications stored in the database table `applications`.
+- **Deduplication**: Handled by database unique constraints on job links. Existing items are preserved, and only new links are added as `is_new=True`.
+- **Persistence**: The SQLite database (`InternApp.db`) persists all data across sessions and restarts.
 
 ## Contributing
 
