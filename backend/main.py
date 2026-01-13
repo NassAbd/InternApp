@@ -5,6 +5,7 @@ import os
 import math
 
 # --- APP IMPORTS ---
+# --- APP IMPORTS ---
 from fastapi import FastAPI, Body, Query, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from config import ACTIVE_SCRAPERS, JSON_OUTPUT_PATH
@@ -14,11 +15,26 @@ from scoring_engine import ScoringEngine
 from cv_parser import CVParser
 from application_manager import ApplicationManager
 from maintenance_service import MaintenanceService
+from database import SessionLocal
+from repositories.job_repository import JobRepository
+from sqlalchemy.exc import OperationalError
+from database import engine
+from models import Base
 import inspect
 import traceback
 # -------------------
 
 app = FastAPI()
+
+@app.on_event("startup")
+def on_startup():
+    try:
+        # Create tables if they don't exist
+        Base.metadata.create_all(bind=engine)
+        print("Database tables created/verified.")
+    except Exception as e:
+        print(f"Error initializing database: {e}")
+
 
 # Initialize services
 tagging_service = TaggingService()
@@ -41,31 +57,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-JOBS_FILE = JSON_OUTPUT_PATH
-
-# --- Utils ---
-def load_jobs():
-    if not os.path.exists(JOBS_FILE):
-        return []
-    with open(JOBS_FILE, "r", encoding="utf-8") as f:
-        jobs = json.load(f)
-    
-    # Ensure all jobs have tags field for backward compatibility
-    for job in jobs:
-        if "tags" not in job:
-            job_title = job.get("title", "")
-            job_description = job.get("description", "")
-            job["tags"] = tagging_service.tagJob(job_title, job_description)
-    
-    return jobs
-
-
-def save_jobs(jobs):
-    with open(JOBS_FILE, "w", encoding="utf-8") as f:
-        json.dump(jobs, f, indent=2, ensure_ascii=False)
-
 
 # --- Routes ---
+
 @app.get("/jobs")
 def get_jobs(
     page: int = Query(1, ge=1),
@@ -73,46 +67,42 @@ def get_jobs(
     modules: str = Query(None),
     search: str = Query(None),
 ):
-    all_jobs = load_jobs()
+    session = SessionLocal()
+    try:
+        repo = JobRepository(session)
+        
+        module_list = [m.strip().lower() for m in modules.split(",")] if modules else None
+        
+        # Get jobs from DB
+        try:
+            jobs_models, total_items = repo.get_jobs(
+                skip=(page - 1) * size,
+                limit=size,
+                modules=module_list,
+                search=search
+            )
+        except OperationalError:
+             # Database likely missing or tables not created
+            jobs_models, total_items = [], 0
+        
+        # Convert to dicts
+        jobs_list = [job.to_dict() for job in jobs_models]
+        
+        # Get modules list from config
+        filterable_modules = sorted(list(ACTIVE_SCRAPERS.keys()))
+        
+        total_pages = math.ceil(total_items / size)
 
-    filterable_modules = sorted(list(set(job.get("module") for job in all_jobs if job.get("module"))))
-
-    # Filter by modules
-    filtered_jobs = all_jobs
-    if modules:
-        selected_modules = {name.strip().lower() for name in modules.split(",")}
-        filtered_jobs = [
-            job for job in filtered_jobs
-            if job.get("module") and job["module"].lower() in selected_modules
-        ]
-
-    # Filter by search
-    if search:
-        search_term = search.lower()
-        filtered_jobs = [
-            job for job in filtered_jobs
-            if search_term in str(job.get("title", "")).lower() or \
-               search_term in str(job.get("company", "")).lower() or \
-               search_term in str(job.get("location", "")).lower()
-        ]
-
-    # Pagination
-    total_items = len(filtered_jobs)
-    total_pages = math.ceil(total_items / size)
-
-    start_index = (page - 1) * size
-    end_index = start_index + size
-
-    paginated_jobs = filtered_jobs[start_index:end_index]
-
-    return {
-        "page": page,
-        "size": size,
-        "total_items": total_items,
-        "total_pages": total_pages,
-        "jobs": paginated_jobs,
-        "filterable_modules": filterable_modules,
-    }
+        return {
+            "page": page,
+            "size": size,
+            "total_items": total_items,
+            "total_pages": total_pages,
+            "jobs": jobs_list,
+            "filterable_modules": filterable_modules,
+        }
+    finally:
+        session.close()
 
 
 @app.get("/modules")
@@ -136,8 +126,21 @@ def get_profile():
         profile = profile_manager.loadProfile()
         return profile
     except ValueError as e:
+        if "OperationalError" in str(e) or "no such table" in str(e):
+            # Return default profile if DB is uninitialized/broken
+            return {
+                "tags": [],
+                "location": None,
+                "groq_api_key": None
+            }
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        if "no such table" in str(e) or "OperationalError" in str(e):
+             return {
+                "tags": [],
+                "location": None,
+                "groq_api_key": None
+            }
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -305,6 +308,9 @@ def get_personalized_jobs(
         
         # Check if user has any preferences set
         if not user_profile.get("tags") and not user_profile.get("location"):
+             # Return empty or standard list. 
+             # For simpler logic, we can return standardized empty struct or call get_jobs?
+             # Existing logic returned clean empty structure with message.
             return {
                 "page": page,
                 "size": size,
@@ -315,55 +321,75 @@ def get_personalized_jobs(
                 "message": "No preferences set. Please configure your profile to see personalized recommendations."
             }
         
-        # Load all jobs
-        all_jobs = load_jobs()
-        
-        # Apply module filtering before scoring (same as regular /jobs endpoint)
-        filtered_jobs = all_jobs
-        if modules:
-            selected_modules = {name.strip().lower() for name in modules.split(",")}
-            filtered_jobs = [
-                job for job in filtered_jobs
-                if job.get("module") and job["module"].lower() in selected_modules
-            ]
-        
-        # Apply search filtering before scoring (same as regular /jobs endpoint)
-        if search:
-            search_term = search.lower()
-            filtered_jobs = [
-                job for job in filtered_jobs
-                if search_term in str(job.get("title", "")).lower() or \
-                   search_term in str(job.get("company", "")).lower() or \
-                   search_term in str(job.get("location", "")).lower()
-            ]
-        
-        # Score and filter jobs using ScoringEngine
-        scored_jobs = scoring_engine.scoreJobs(user_profile, filtered_jobs)
-        
-        # Get filterable modules from all jobs (for UI consistency)
-        filterable_modules = sorted(list(set(job.get("module") for job in all_jobs if job.get("module"))))
-        
-        # Pagination
-        total_items = len(scored_jobs)
-        total_pages = math.ceil(total_items / size) if total_items > 0 else 0
-        
-        start_index = (page - 1) * size
-        end_index = start_index + size
-        
-        paginated_jobs = scored_jobs[start_index:end_index]
-        
-        return {
-            "page": page,
-            "size": size,
-            "total_items": total_items,
-            "total_pages": total_pages,
-            "jobs": paginated_jobs,
-            "filterable_modules": filterable_modules,
-        }
+        session = SessionLocal()
+        try:
+            repo = JobRepository(session)
+            
+            module_list = [m.strip().lower() for m in modules.split(",")] if modules else None
+            
+            # Fetch ALL matching jobs (limit 10000) for scoring
+            # We must fetch all because scoring needs to sort the entire set.
+            try:
+                jobs_models, _ = repo.get_jobs(
+                    skip=0, 
+                    limit=10000, 
+                    modules=module_list, 
+                    search=search
+                )
+            except OperationalError:
+                jobs_models = []
+
+            
+            # Convert to dicts
+            filtered_jobs = [job.to_dict() for job in jobs_models]
+            
+            # Score and filter jobs using ScoringEngine
+            scored_jobs = scoring_engine.scoreJobs(user_profile, filtered_jobs)
+            
+            # Get filterable modules
+            filterable_modules = sorted(list(ACTIVE_SCRAPERS.keys()))
+            
+            # Pagination in memory
+            total_items = len(scored_jobs)
+            total_pages = math.ceil(total_items / size) if total_items > 0 else 0
+            
+            start_index = (page - 1) * size
+            end_index = start_index + size
+            
+            paginated_jobs = scored_jobs[start_index:end_index]
+            
+            return {
+                "page": page,
+                "size": size,
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "jobs": paginated_jobs,
+                "filterable_modules": filterable_modules,
+            }
+        finally:
+            session.close()
         
     except ValueError as e:
+        if "OperationalError" in str(e) or "no such table" in str(e):
+             return {
+                "page": page,
+                "size": size,
+                "total_items": 0,
+                "total_pages": 0,
+                "jobs": [],
+                "filterable_modules": [],
+            }
         raise HTTPException(status_code=400, detail=f"Profile error: {str(e)}")
     except Exception as e:
+        if "no such table" in str(e) or "OperationalError" in str(e):
+             return {
+                "page": page,
+                "size": size,
+                "total_items": 0,
+                "total_pages": 0,
+                "jobs": [],
+                "filterable_modules": [],
+            }
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -391,7 +417,11 @@ def track_application(job_data: dict = Body(...)):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        # Check for operational DB errors in the exception chain or string
+        if "no such table" in str(e) or "OperationalError" in str(e):
+             raise HTTPException(status_code=503, detail="Database unavailable. Please try again later.")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 
 
 @app.get("/applications")
@@ -412,6 +442,12 @@ def get_tracked_applications():
             "data": applications
         }
     except Exception as e:
+        if "no such table" in str(e) or "OperationalError" in str(e) or isinstance(e, OperationalError):
+             # Return empty list for graceful frontend handling
+             return {
+                 "success": True,
+                 "data": []
+             }
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -443,6 +479,8 @@ def update_application(job_id: str, updates: dict = Body(...)):
         else:
             raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        if "no such table" in str(e) or "OperationalError" in str(e):
+             raise HTTPException(status_code=503, detail="Database unavailable.")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -475,6 +513,8 @@ def remove_application(job_id: str):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        if "no such table" in str(e) or "OperationalError" in str(e):
+             raise HTTPException(status_code=503, detail="Database unavailable.")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -496,8 +536,8 @@ async def scrape_selected_modules(modules: list[str] = Body(..., embed=True)):
 
 # --- ASYNC common function ---
 async def _scrape_modules(modules: list[str]):
-    jobs = load_jobs()
-    existing_links = {j["link"] for j in jobs}
+    # We used to load all jobs here to check duplicates relative to 'jobs'.
+    # Now we will check against DB for each scraped job.
     
     tasks = []
     scraped_modules_names = []
@@ -516,74 +556,104 @@ async def _scrape_modules(modules: list[str]):
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     # Process results
-    new_jobs = []
+    session = SessionLocal()
+    repo = JobRepository(session)
+    
+    new_jobs_count = 0
     failed_scrapers = []
     
-    for module, result in zip(scraped_modules_names, results):
-        if isinstance(result, Exception):
-            # The scraper failed (exception raised)
-            print(f"Error scraper {module}: {result}")
-            
-            failure_info = {
-                "module": module,
-                "error": str(result),
-                "diagnosis": None
-            }
-            
-            # Try to diagnose if we have an API key and usage is enabled
-            try:
-                profile = profile_manager.loadProfile()
-                api_key = profile.get("groq_api_key")
-                use_for_fix = profile.get("use_for_scraper_fix", False)
-                
-                if api_key and use_for_fix:
-                    scraper_module = ACTIVE_SCRAPERS.get(module)
-                    if scraper_module:
-                        try:
-                            # If it's a module
-                            source_code = inspect.getsource(scraper_module)
-                        except TypeError:
-                            # Fallback if it's a class instance
-                            source_code = inspect.getsource(scraper_module.__class__)
-                            
-                        error_log = "".join(traceback.format_exception(type(result), result, result.__traceback__))
-                        
-                        diagnosis = maintenance_service.diagnose_failure(
-                            module_name=module,
-                            error_log=error_log,
-                            source_code=source_code,
-                            api_key=api_key
-                        )
-                        failure_info["diagnosis"] = diagnosis
-            except Exception as e:
-                print(f"Diagnosis failed for {module}: {e}")
-                
-            failed_scrapers.append(failure_info)
-        else:
-            # Success : 'result' is site_jobs
-            site_jobs = result
-            for job in site_jobs:
-                if job["link"] not in existing_links:
-                    # Add tags to the job using TaggingService
-                    job_title = job.get("title", "")
-                    job_description = job.get("description", "")  # Some scrapers might have description
-                    job["tags"] = tagging_service.tagJob(job_title, job_description)
+    try:
+        try:
+            for module, result in zip(scraped_modules_names, results):
+                if isinstance(result, Exception):
+                    # The scraper failed (exception raised)
+                    print(f"Error scraper {module}: {result}")
                     
-                    job["new"] = True
-                    new_jobs.append(job)
-                    existing_links.add(job["link"])
+                    failure_info = {
+                        "module": module,
+                        "error": str(result),
+                        "diagnosis": None
+                    }
+                    
+                    # Try to diagnose if we have an API key and usage is enabled
+                    try:
+                        profile = profile_manager.loadProfile()
+                        api_key = profile.get("groq_api_key")
+                        use_for_fix = profile.get("use_for_scraper_fix", False)
+                        
+                        if api_key and use_for_fix:
+                            scraper_module = ACTIVE_SCRAPERS.get(module)
+                            if scraper_module:
+                                try:
+                                    # If it's a module
+                                    source_code = inspect.getsource(scraper_module)
+                                except TypeError:
+                                    # Fallback if it's a class instance
+                                    source_code = inspect.getsource(scraper_module.__class__)
+                                    
+                                error_log = "".join(traceback.format_exception(type(result), result, result.__traceback__))
+                                
+                                diagnosis = maintenance_service.diagnose_failure(
+                                    module_name=module,
+                                    error_log=error_log,
+                                    source_code=source_code,
+                                    api_key=api_key
+                                )
+                                failure_info["diagnosis"] = diagnosis
+                    except Exception as e:
+                        print(f"Diagnosis failed for {module}: {e}")
+                        
+                    failed_scrapers.append(failure_info)
                 else:
-                    print(f"Duplicate found: {job['link']}")
+                    # Success : 'result' is site_jobs
+                    site_jobs = result
+                    
+                    # 1. Collect potential new jobs and existing IDs for this module
+                    module_new_jobs = []
+                    module_existing_ids = []
+                    
+                    for job in site_jobs:
+                        # Check if exists in DB (Read is fine, minimal I/O compared to Write)
+                        # Optimization: We could pre-fetch all links if list is huge, 
+                        # but for <100 jobs/module, row-by-row check is acceptable provided we don't WRITE.
+                        existing_job = repo.get_job_by_link(job["link"])
+                        
+                        if not existing_job:
+                            # Add tags to the job using TaggingService
+                            job_title = job.get("title", "")
+                            job_description = job.get("description", "")
+                            job["tags"] = tagging_service.tagJob(job_title, job_description)
+                            job["is_new"] = True
+                            
+                            # Add to batch list
+                            module_new_jobs.append(job)
+                        else:
+                            # User Request: If found, mark as old (is_new = False)
+                            module_existing_ids.append(existing_job.id)
+                    
+                    # 2. Batch Operations
+                    if module_new_jobs:
+                        repo.create_jobs_batch(module_new_jobs)
+                        new_jobs_count += len(module_new_jobs)
+                    
+                    if module_existing_ids:
+                        repo.mark_jobs_as_old(module_existing_ids)
 
-    # Finalize and save
-    for job in jobs:
-        job["new"] = False
+            # Get total count
+            _, total_count = repo.get_jobs(limit=1) 
+            
+            return {
+                "added": new_jobs_count,
+                "total": total_count,
+                "failed_scrapers": failed_scrapers,
+            }
 
-    jobs = new_jobs + jobs
-    save_jobs(jobs)
-
-    return {
-        "added": len(new_jobs),
-        "total": len(jobs),
-        "failed_scrapers": failed_scrapers,
-    }
+        except OperationalError as e:
+            print(f"Database error during scrape: {e}")
+            return {
+                "added": new_jobs_count,
+                "total": 0,
+                "failed_scrapers": failed_scrapers + [{"module": "general", "error": f"Database unavailable: {str(e)}"}],
+            }
+    finally:
+        session.close()
