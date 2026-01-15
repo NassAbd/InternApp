@@ -21,9 +21,9 @@ Jobs include fields we need to return, and additional `tag` field for the person
 | **module** | `str` | The name used in `config.py` (e.g., "airbus"). | ✅ Required for filtering |
 | **company** | `str` | The display name of the company (e.g., "Airbus"). | ✅ Required |
 | **title** | `str` | The job title (e.g., "Software Engineer Intern"). | ✅ Required |
-| **link** | `str` | The full, unique URL to the job offer. | ✅ Required for deduplication |
+| **link** | `str` | The full, unique URL to the job offer. | ✅ Required (DB Unique Key) |
 | **location** | `str` | The job location (e.g., "Paris"). | ✅ Required |
-| **new** | `bool` | Whether this is a newly scraped job. | ⚠️ Auto-managed |
+| **new** | `bool` | Whether this is a newly scraped job. | ⚠️ Auto-managed by DB |
 | **tags** | `list[str]` | Automatically generated skill/category tags. | ⚠️ Auto-generated |
 
 

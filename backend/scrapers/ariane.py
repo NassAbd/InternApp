@@ -145,30 +145,23 @@ async def fetch_jobs():
     """Execute the scraping of the 2 sources in parallel and merge the results"""
     all_jobs = []
     
-    # Prepare the asynchronous tasks
     tasks = [
         fetch_arianespace_jobs(),
         fetch_arianegroup_jobs(),
     ]
     
-    # Execute the two scrapers in parallel
-    # return_exceptions=True allows to continue if one of the scrapers fails
     results = await asyncio.gather(*tasks, return_exceptions=True)
     
-    # Process the results
     success = False
     
     for result in results:
         if isinstance(result, Exception):
-            # Display the warning and continue
             print(f"[WARN] Ariane fetch failed: {result}")
         else:
-            # Success: 'result' is a list of jobs
             all_jobs.extend(result)
             success = True
 
     if not success:
-        # If both scrapers failed
         raise RuntimeError("No jobs found on either ArianeSpace or ArianeGroup pages")
 
     return all_jobs

@@ -30,11 +30,8 @@ async def fetch_jobs():
         page = await context.new_page() 
         await page.goto(url, timeout=60000) 
         
-        # --- Cookies handling ---
-        # NOTE: We're using locator to get an object that supports wait_for.
         cookie_locator = page.locator("button[data-ph-at-id='cookie-close-link'] >> text=Accepter") 
         
-        # Check if the element is visible and wait for it to be hidden
         is_visible = await cookie_locator.is_visible() 
             
         if is_visible:
@@ -45,10 +42,8 @@ async def fetch_jobs():
             except TimeoutError:
                 # Keep going if the banner doesn't disappear, but the click has happened
                 pass
-        # ---------------------------
 
         while True:
-            # Wait for the list to load
             try:
                 await page.wait_for_selector("li.jobs-list-item", timeout=10000) 
             except TimeoutError:

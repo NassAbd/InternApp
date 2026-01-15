@@ -12,180 +12,80 @@ from pathlib import Path
 
 
 class ProfileManager:
-    """Manages user profile data and persistence operations."""
+    """Manages user profile data and persistence operations via Database."""
     
-    def __init__(self, profile_path: str = "user_profile.json"):
+    def __init__(self):
         """
-        Initialize ProfileManager with specified profile file path.
-        
-        Args:
-            profile_path: Path to the user profile JSON file
+        Initialize ProfileManager.
+        Uses on-demand database sessions for operations.
         """
-        self.profile_path = Path(profile_path)
-        self._default_profile = {
-            "tags": [],
-            "location": None,
-            "groq_api_key": None,
-            "use_for_scraper_fix": False
-        }
+        from database import SessionLocal
+        self.SessionLocal = SessionLocal
     
     def loadProfile(self) -> Dict[str, Any]:
         """
-        Load user profile from JSON file or create default profile if file doesn't exist.
+        Load user profile from Database.
         
         Returns:
             Dict containing user profile data with keys: tags, location, groq_api_key
-            
-        Raises:
-            ValueError: If profile file is corrupted or contains invalid data
         """
+        from repositories.profile_repository import ProfileRepository
+        import json
+        
+        session = self.SessionLocal()
         try:
-            if not self.profile_path.exists():
-                # Create default profile file if it doesn't exist
-                self.saveProfile(self._default_profile)
-                return self._default_profile.copy()
+            repo = ProfileRepository(session)
+            profile_model = repo.get_profile()
             
-            with open(self.profile_path, 'r', encoding='utf-8') as f:
-                profile_data = json.load(f)
-            
-            # Validate profile structure and provide defaults for missing keys
-            validated_profile = self._validate_profile(profile_data)
-            return validated_profile
-            
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Profile file is corrupted: {e}")
+            # Serialize to dict to maintain contract with main.py
+            return {
+                "tags": json.loads(profile_model.tags) if profile_model.tags else [],
+                "location": profile_model.location_preference,
+                "groq_api_key": profile_model.groq_api_key,
+                "use_for_scraper_fix": profile_model.use_for_scraper_fix
+            }
         except Exception as e:
             raise ValueError(f"Error loading profile: {e}")
+        finally:
+            session.close()
     
-    def saveProfile(self, profile: Dict[str, Any]) -> None:
+    def saveProfile(self, profile_data: Dict[str, Any]) -> None:
         """
-        Save user profile data to JSON file with proper error handling.
+        Save user profile data to Database.
         
         Args:
-            profile: Dictionary containing profile data
-            
-        Raises:
-            ValueError: If profile data is invalid
-            IOError: If file cannot be written
+            profile_data: Dictionary containing profile data
         """
+        from repositories.profile_repository import ProfileRepository
+        
+        session = self.SessionLocal()
         try:
-            # Validate profile before saving
-            validated_profile = self._validate_profile(profile)
-            
-            # Ensure directory exists
-            self.profile_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Write profile data
-            with open(self.profile_path, 'w', encoding='utf-8') as f:
-                json.dump(validated_profile, f, indent=2, ensure_ascii=False)
-                
+            repo = ProfileRepository(session)
+            repo.update_profile(profile_data)
         except Exception as e:
             raise IOError(f"Error saving profile: {e}")
+        finally:
+            session.close()
     
     def updateTags(self, tags: List[str]) -> Dict[str, Any]:
-        """
-        Update user interest tags in the profile.
-        
-        Args:
-            tags: List of tag strings representing user interests
-            
-        Returns:
-            Updated profile dictionary
-            
-        Raises:
-            ValueError: If tags parameter is invalid
-        """
+        """Update user interest tags in the profile."""
         if not isinstance(tags, list):
             raise ValueError("Tags must be a list")
-        
-        # Validate and clean tags
+            
         cleaned_tags = [str(tag).strip() for tag in tags if str(tag).strip()]
         
-        profile = self.loadProfile()
-        profile["tags"] = cleaned_tags
-        self.saveProfile(profile)
-        
-        return profile
+        # Use saveProfile logic which uses repository
+        self.saveProfile({"tags": cleaned_tags})
+        return self.loadProfile()
     
     def setLocationPreference(self, location: Optional[str]) -> Dict[str, Any]:
-        """
-        Set user location preference in the profile.
-        
-        Args:
-            location: Location string or None to clear preference
-            
-        Returns:
-            Updated profile dictionary
-        """
-        profile = self.loadProfile()
-        profile["location"] = location.strip() if location else None
-        self.saveProfile(profile)
-        
-        return profile
+        """Set user location preference in the profile."""
+        loc_val = location.strip() if location else None
+        self.saveProfile({"location": loc_val})
+        return self.loadProfile()
     
     def setGroqApiKey(self, api_key: Optional[str]) -> Dict[str, Any]:
-        """
-        Set Groq API key in the profile (for CV parsing functionality).
-        
-        Args:
-            api_key: API key string or None to clear
-            
-        Returns:
-            Updated profile dictionary
-        """
-        profile = self.loadProfile()
-        profile["groq_api_key"] = api_key.strip() if api_key else None
-        self.saveProfile(profile)
-        
-        return profile
-    
-    def _validate_profile(self, profile: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Validate and normalize profile data structure.
-        
-        Args:
-            profile: Raw profile data dictionary
-            
-        Returns:
-            Validated and normalized profile dictionary
-            
-        Raises:
-            ValueError: If profile structure is invalid
-        """
-        if not isinstance(profile, dict):
-            raise ValueError("Profile must be a dictionary")
-        
-        # Create validated profile with defaults
-        validated = self._default_profile.copy()
-        
-        # Validate tags
-        if "tags" in profile:
-            if isinstance(profile["tags"], list):
-                validated["tags"] = [str(tag).strip() for tag in profile["tags"] if str(tag).strip()]
-            else:
-                raise ValueError("Tags must be a list")
-        
-        # Validate location
-        if "location" in profile:
-            if profile["location"] is None or isinstance(profile["location"], str):
-                validated["location"] = profile["location"]
-            else:
-                raise ValueError("Location must be a string or None")
-        
-        # Validate groq_api_key
-        if "groq_api_key" in profile:
-            if profile["groq_api_key"] is None or isinstance(profile["groq_api_key"], str):
-                validated["groq_api_key"] = profile["groq_api_key"]
-            else:
-                raise ValueError("Groq API key must be a string or None")
-        
-        # Validate use_for_scraper_fix
-        if "use_for_scraper_fix" in profile:
-            if isinstance(profile["use_for_scraper_fix"], bool):
-                validated["use_for_scraper_fix"] = profile["use_for_scraper_fix"]
-            elif profile["use_for_scraper_fix"] is None:
-                validated["use_for_scraper_fix"] = False
-            else:
-                raise ValueError("use_for_scraper_fix must be a boolean")
-        
-        return validated
+        """Set Groq API key in the profile."""
+        key_val = api_key.strip() if api_key else None
+        self.saveProfile({"groq_api_key": key_val})
+        return self.loadProfile()
