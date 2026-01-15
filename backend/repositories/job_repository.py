@@ -17,7 +17,6 @@ class JobRepository:
 
     def create_job(self, job_data: Dict[str, Any]) -> Job:
         """Create a new job record."""
-        # Convert tags list to string if necessary, simplistic handling for now
         tags = job_data.get("tags")
         if isinstance(tags, list):
             import json
@@ -48,7 +47,6 @@ class JobRepository:
         import json
         new_jobs = []
         for job_data in jobs_data:
-            # Convert tags
             tags = job_data.get("tags")
             if isinstance(tags, list):
                 tags = json.dumps(tags)
@@ -88,7 +86,6 @@ class JobRepository:
         """Get existing job by link or create new one. DOES NOT update existing."""
         existing_job = self.get_job_by_link(job_data["link"])
         if existing_job:
-            # Optional: update 'module' if it was missing? 
             if not existing_job.module and job_data.get("module"):
                 existing_job.module = job_data.get("module")
                 self.db.commit()
@@ -111,14 +108,9 @@ class JobRepository:
         query = self.db.query(Job).order_by(Job.date_scraped.desc())
 
         
-        # Filter by modules
         if modules:
-            # Case-insensitive filtering for modules usually requires valid data
-            # Assumes stored modules are consistent or lowercased.
-            # Here we use 'IN' clause.
             query = query.filter(Job.module.in_(modules))
             
-        # Filter by search term
         if search:
             search_term = f"%{search}%"
             query = query.filter(
@@ -127,10 +119,8 @@ class JobRepository:
                 (Job.location.ilike(search_term))
             )
             
-        # Get total count before pagination
         total = query.count()
         
-        # Pagination
         jobs = query.offset(skip).limit(limit).all()
         
         return jobs, total

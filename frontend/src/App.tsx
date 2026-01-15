@@ -33,7 +33,6 @@ type JobsResponse = {
 
 type CurrentView = 'feed' | 'dashboard';
 
-// Create a separate component that uses the hooks inside the provider
 function AppContent() {
   const [currentView, setCurrentView] = useState<CurrentView>('feed');
   const [jobsData, setJobsData] = useState<JobsResponse | null>(null);
@@ -43,7 +42,6 @@ function AppContent() {
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [selectedFeed, setSelectedFeed] = useState<FeedType>("all");
 
-  // List of all available modules for scraping
   const [availableScrapeModules, setAvailableScrapeModules] = useState<string[]>([]);
 
   const [filterableModules, setFilterableModules] = useState<string[]>([]);
@@ -59,14 +57,11 @@ function AppContent() {
     selectedModule: "",
   });
 
-  // Temporary search term, not linked to the automatic API request.
   const [pendingSearchTerm, setPendingSearchTerm] = useState(filters.searchTerm);
 
-  // Overlay states
   const [showProfileManager, setShowProfileManager] = useState(false);
   const [showCVUploader, setShowCVUploader] = useState(false);
 
-  // Application tracking - now inside the provider
   const applicationTracker = useApplicationTracker();
 
 
@@ -143,7 +138,6 @@ function AppContent() {
     // Set initial view based on current hash
     handleHashChange();
 
-    // Listen for hash changes
     window.addEventListener('hashchange', handleHashChange);
 
     return () => {
@@ -151,7 +145,6 @@ function AppContent() {
     };
   }, []);
 
-  // Synchronise the temporary search term when the real filter changes (e.g: reset).
   useEffect(() => {
     setPendingSearchTerm(filters.searchTerm);
   }, [filters.searchTerm]);
@@ -247,7 +240,6 @@ function AppContent() {
   const isDatabaseEmpty = !hasScraped && !isFilterActive;
   const isFilteredButEmpty = jobsData?.total_items === 0 && isFilterActive;
 
-  // Handle CV upload success
   const handleCVUploadSuccess = () => {
     setShowCVUploader(false);
     // Refresh jobs if we're on the personalized feed
@@ -256,7 +248,6 @@ function AppContent() {
     }
   };
 
-  // Handle profile update success
   const handleProfileUpdate = () => {
     // Refresh jobs if we're on the personalized feed
     if (selectedFeed === "for-you") {
@@ -264,7 +255,6 @@ function AppContent() {
     }
   };
 
-  // Handle CV analysis state
   const handleCVAnalysisStart = () => {
     setLoadingState('analyzing');
   };
@@ -273,7 +263,6 @@ function AppContent() {
     setLoadingState('idle');
   };
 
-  // Handle overlay close with ESC key
   useEffect(() => {
     const handleEscKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -337,7 +326,6 @@ function AppContent() {
     await applicationTracker.untrackJob(backendId);
   };
 
-  // Handle overlay background click
   const handleOverlayClick = (e: React.MouseEvent, closeFunction: () => void) => {
     if (e.target === e.currentTarget) {
       closeFunction();
@@ -348,7 +336,6 @@ function AppContent() {
     <div className={styles.container}>
       <NotificationContainer />
 
-      {/* Navigation */}
       <div className={styles.navigation}>
         <button
           onClick={navigateToFeed}
@@ -406,7 +393,6 @@ function AppContent() {
               {loadingState === 'scraping' ? "Scraping..." : "Scrape"}
             </button>
 
-            {/* Profile Management Buttons */}
             <div className={styles.profileButtons}>
               <button
                 onClick={() => setShowProfileManager(true)}
@@ -482,7 +468,6 @@ function AppContent() {
         </>
       )}
 
-      {/* Profile Manager Overlay */}
       {showProfileManager && (
         <div
           className={styles.overlay}
@@ -497,7 +482,6 @@ function AppContent() {
         </div>
       )}
 
-      {/* CV Uploader Overlay */}
       {showCVUploader && (
         <div
           className={styles.overlay}

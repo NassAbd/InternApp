@@ -31,13 +31,11 @@ async def fetch_jobs():
         await page.goto(url, timeout=60000)
 
         while True:
-            # Wait for results on the current page
             await page.wait_for_selector("section[data-automation-id='jobResults'] li", timeout=10000)
 
             items = await page.query_selector_all("section[data-automation-id='jobResults'] li")
 
             for item in items:
-                # Playwright methods that do not involve network I/O (like query_selector, text_content, get_attribute) remain synchronous on the ElementHandle object
                 a_tag = await item.query_selector("a[data-automation-id='jobTitle']")
                 if not a_tag:
                     raise ValueError("Could not find job title element (a[data-automation-id='jobTitle'])")
@@ -72,7 +70,6 @@ async def fetch_jobs():
                     "location": location,
                 })
 
-            # Check if "next" button is present and clickable
             next_button = await page.query_selector("button[data-uxi-element-id='next']")
             if next_button:
                 is_enabled = await next_button.is_enabled()

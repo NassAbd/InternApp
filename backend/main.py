@@ -22,7 +22,6 @@ from database import engine
 from models import Base
 import inspect
 import traceback
-# -------------------
 
 app = FastAPI()
 
@@ -36,7 +35,6 @@ def on_startup():
         print(f"Error initializing database: {e}")
 
 
-# Initialize services
 tagging_service = TaggingService()
 profile_manager = ProfileManager()
 scoring_engine = ScoringEngine()
@@ -58,7 +56,6 @@ app.add_middleware(
 )
 
 
-# --- Routes ---
 
 @app.get("/jobs")
 def get_jobs(
@@ -110,7 +107,6 @@ def get_modules():
     return list(ACTIVE_SCRAPERS.keys())
 
 
-# --- Profile Management Endpoints ---
 @app.get("/profile")
 def get_profile():
     """
@@ -393,7 +389,6 @@ def get_personalized_jobs(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-# --- Application Tracking Endpoints ---
 @app.post("/applications")
 def track_application(job_data: dict = Body(...)):
     """
@@ -534,15 +529,11 @@ async def scrape_selected_modules(modules: list[str] = Body(..., embed=True)):
     return await _scrape_modules(modules)
 
 
-# --- ASYNC common function ---
 async def _scrape_modules(modules: list[str]):
-    # We used to load all jobs here to check duplicates relative to 'jobs'.
-    # Now we will check against DB for each scraped job.
     
     tasks = []
     scraped_modules_names = []
     
-    # Prepare async tasks
     for module in modules:
         scraper = ACTIVE_SCRAPERS.get(module)
         if scraper and hasattr(scraper, "fetch_jobs"):
@@ -552,10 +543,8 @@ async def _scrape_modules(modules: list[str]):
         else:
             print(f"Module {module} unknown or without fetch_jobs.")
 
-    # Execute tasks in parallel and wait for results
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    # Process results
     session = SessionLocal()
     repo = JobRepository(session)
     
@@ -575,7 +564,6 @@ async def _scrape_modules(modules: list[str]):
                         "diagnosis": None
                     }
                     
-                    # Try to diagnose if we have an API key and usage is enabled
                     try:
                         profile = profile_manager.loadProfile()
                         api_key = profile.get("groq_api_key")
@@ -604,8 +592,6 @@ async def _scrape_modules(modules: list[str]):
                         print(f"Diagnosis failed for {module}: {e}")
                         
                     failed_scrapers.append(failure_info)
-                else:
-                    # Success : 'result' is site_jobs
                     site_jobs = result
                     
                     # 1. Collect potential new jobs and existing IDs for this module
@@ -614,24 +600,18 @@ async def _scrape_modules(modules: list[str]):
                     
                     for job in site_jobs:
                         # Check if exists in DB (Read is fine, minimal I/O compared to Write)
-                        # Optimization: We could pre-fetch all links if list is huge, 
-                        # but for <100 jobs/module, row-by-row check is acceptable provided we don't WRITE.
                         existing_job = repo.get_job_by_link(job["link"])
                         
                         if not existing_job:
-                            # Add tags to the job using TaggingService
                             job_title = job.get("title", "")
                             job_description = job.get("description", "")
                             job["tags"] = tagging_service.tagJob(job_title, job_description)
                             job["is_new"] = True
                             
-                            # Add to batch list
                             module_new_jobs.append(job)
                         else:
-                            # User Request: If found, mark as old (is_new = False)
                             module_existing_ids.append(existing_job.id)
                     
-                    # 2. Batch Operations
                     if module_new_jobs:
                         repo.create_jobs_batch(module_new_jobs)
                         new_jobs_count += len(module_new_jobs)
@@ -639,7 +619,6 @@ async def _scrape_modules(modules: list[str]):
                     if module_existing_ids:
                         repo.mark_jobs_as_old(module_existing_ids)
 
-            # Get total count
             _, total_count = repo.get_jobs(limit=1) 
             
             return {

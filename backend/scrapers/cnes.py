@@ -55,7 +55,6 @@ async def fetch_jobs():
             if not title:
                  raise ValueError("Job title is empty")
 
-            # Footer : localisation, contrat, domaine
             footer_items = await card.query_selector_all("ul.job-ad-card__description__footer li")
             location = None
             if len(footer_items) >= 1:
