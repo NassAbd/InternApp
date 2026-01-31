@@ -1,5 +1,5 @@
 # Official Playwright image to have browser dependencies pre-installed.
-FROM mcr.microsoft.com/playwright/python:v1.57.0-jammy
+FROM mcr.microsoft.com/playwright/python:v1.58.0-jammy
 
 WORKDIR /app
 
