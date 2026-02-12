@@ -5,27 +5,35 @@ import os
 import math
 
 # --- APP IMPORTS ---
-from fastapi import FastAPI, Body, Query, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, Body, Query, HTTPException, UploadFile, File, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from config import ACTIVE_SCRAPERS, JSON_OUTPUT_PATH
+from sqlalchemy.orm import Session
+from config import ACTIVE_SCRAPERS
 from tagging_service import TaggingService
-from profile_manager import ProfileManager
 from scoring_engine import ScoringEngine
 from cv_parser import CVParser
-from application_manager import ApplicationManager
 from maintenance_service import MaintenanceService
+from database import get_db, init_db
+from repositories.job_repository import JobRepository
+from repositories.profile_repository import ProfileRepository
+from repositories.application_repository import ApplicationRepository
 import inspect
 import traceback
 # -------------------
 
 app = FastAPI()
 
+# Initialize database on startup
+@app.on_event("startup")
+def startup_event():
+    """Initialize database tables on application startup."""
+    init_db()
+    print("✅ Database initialized")
+
 # Initialize services
 tagging_service = TaggingService()
-profile_manager = ProfileManager()
 scoring_engine = ScoringEngine()
 cv_parser = CVParser()
-application_manager = ApplicationManager()
 maintenance_service = MaintenanceService()
 
 origins = [
@@ -41,28 +49,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-JOBS_FILE = JSON_OUTPUT_PATH
-
-# --- Utils ---
-def load_jobs():
-    if not os.path.exists(JOBS_FILE):
-        return []
-    with open(JOBS_FILE, "r", encoding="utf-8") as f:
-        jobs = json.load(f)
-    
-    # Ensure all jobs have tags field for backward compatibility
-    for job in jobs:
-        if "tags" not in job:
-            job_title = job.get("title", "")
-            job_description = job.get("description", "")
-            job["tags"] = tagging_service.tagJob(job_title, job_description)
-    
-    return jobs
-
-
-def save_jobs(jobs):
-    with open(JOBS_FILE, "w", encoding="utf-8") as f:
-        json.dump(jobs, f, indent=2, ensure_ascii=False)
+# --- Utils removed - now using database repositories ---
 
 
 # --- Routes ---
@@ -72,8 +59,10 @@ def get_jobs(
     size: int = Query(20, ge=1, le=100),
     modules: str = Query(None),
     search: str = Query(None),
+    db: Session = Depends(get_db),
 ):
-    all_jobs = load_jobs()
+    job_repo = JobRepository(db)
+    all_jobs = [job.to_dict() for job in job_repo.get_all_jobs()]
 
     filterable_modules = sorted(list(set(job.get("module") for job in all_jobs if job.get("module"))))
 
@@ -122,7 +111,7 @@ def get_modules():
 
 # --- Profile Management Endpoints ---
 @app.get("/profile")
-def get_profile():
+def get_profile(db: Session = Depends(get_db)):
     """
     Load user profile data.
     
@@ -133,8 +122,9 @@ def get_profile():
         HTTPException: If profile cannot be loaded or is corrupted
     """
     try:
-        profile = profile_manager.loadProfile()
-        return profile
+        profile_repo = ProfileRepository(db)
+        profile = profile_repo.get_profile()
+        return profile.to_dict()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -142,7 +132,7 @@ def get_profile():
 
 
 @app.post("/profile")
-def save_profile(profile_data: dict = Body(...)):
+def save_profile(profile_data: dict = Body(...), db: Session = Depends(get_db)):
     """
     Save user profile updates.
     
@@ -156,9 +146,9 @@ def save_profile(profile_data: dict = Body(...)):
         HTTPException: If profile data is invalid or cannot be saved
     """
     try:
-        profile_manager.saveProfile(profile_data)
-        # Return the saved profile to confirm what was actually stored
-        return profile_manager.loadProfile()
+        profile_repo = ProfileRepository(db)
+        profile = profile_repo.save_profile(profile_data)
+        return profile.to_dict()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except IOError as e:
@@ -168,7 +158,7 @@ def save_profile(profile_data: dict = Body(...)):
 
 
 @app.delete("/profile")
-def reset_profile():
+def reset_profile(db: Session = Depends(get_db)):
     """
     Reset user profile to default/empty state.
     
@@ -179,18 +169,18 @@ def reset_profile():
         HTTPException: If profile cannot be reset
     """
     try:
+        profile_repo = ProfileRepository(db)
         # Create default empty profile
         default_profile = {
             "tags": [],
             "location": None,
-            "groq_api_key": None
+            "groq_api_key": None,
+            "use_for_scraper_fix": False,
         }
         
         # Save the default profile (this will overwrite existing profile)
-        profile_manager.saveProfile(default_profile)
-        
-        # Return the reset profile
-        return profile_manager.loadProfile()
+        profile = profile_repo.save_profile(default_profile)
+        return profile.to_dict()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to reset profile: {str(e)}")
 
@@ -199,7 +189,8 @@ def reset_profile():
 async def parse_cv(
     file: UploadFile = File(...),
     api_key: str = Form(None),
-    merge_with_existing: bool = Form(True)
+    merge_with_existing: bool = Form(True),
+    db: Session = Depends(get_db),
 ):
     """
     Parse uploaded CV file and extract relevant tags using Groq API.
@@ -224,8 +215,9 @@ async def parse_cv(
     if not final_api_key or not final_api_key.strip():
         # Try to load from profile
         try:
-            profile = profile_manager.loadProfile()
-            final_api_key = profile.get("groq_api_key")
+            profile_repo = ProfileRepository(db)
+            profile = profile_repo.get_profile()
+            final_api_key = profile.groq_api_key
         except Exception:
             pass
             
@@ -243,29 +235,32 @@ async def parse_cv(
         extracted_tags, cv_text = cv_parser.parseCV(pdf_content, final_api_key.strip())
         
         # Load current profile
-        current_profile = profile_manager.loadProfile()
+        profile_repo = ProfileRepository(db)
+        current_profile = profile_repo.get_profile()
         
         # Merge tags if requested
         if merge_with_existing:
-            existing_tags = current_profile.get("tags", [])
+            existing_tags = current_profile.tags or []
             final_tags = cv_parser.mergeTags(existing_tags, extracted_tags)
         else:
             final_tags = extracted_tags
         
         # Update profile with new tags and API key (only if provided explicitly)
-        updated_profile = current_profile.copy()
-        updated_profile["tags"] = final_tags
-        if api_key and api_key.strip():
-            updated_profile["groq_api_key"] = api_key.strip()
+        updated_profile_data = {
+            "tags": final_tags,
+            "location": current_profile.location,
+            "groq_api_key": api_key.strip() if api_key and api_key.strip() else current_profile.groq_api_key,
+            "use_for_scraper_fix": current_profile.use_for_scraper_fix,
+        }
         
         # Save updated profile
-        profile_manager.saveProfile(updated_profile)
+        updated_profile = profile_repo.save_profile(updated_profile_data)
         
         return {
             "success": True,
             "extracted_tags": extracted_tags,
             "final_tags": final_tags,
-            "profile": updated_profile,
+            "profile": updated_profile.to_dict(),
             "cv_preview": cv_text[:500] + "..." if len(cv_text) > 500 else cv_text
         }
         
@@ -283,6 +278,7 @@ def get_personalized_jobs(
     size: int = Query(20, ge=1, le=100),
     modules: str = Query(None),
     search: str = Query(None),
+    db: Session = Depends(get_db),
 ):
     """
     Get personalized job feed with relevance scores.
@@ -301,7 +297,9 @@ def get_personalized_jobs(
     """
     try:
         # Load user profile
-        user_profile = profile_manager.loadProfile()
+        profile_repo = ProfileRepository(db)
+        user_profile_model = profile_repo.get_profile()
+        user_profile = user_profile_model.to_dict()
         
         # Check if user has any preferences set
         if not user_profile.get("tags") and not user_profile.get("location"):
@@ -316,7 +314,8 @@ def get_personalized_jobs(
             }
         
         # Load all jobs
-        all_jobs = load_jobs()
+        job_repo = JobRepository(db)
+        all_jobs = [job.to_dict() for job in job_repo.get_all_jobs()]
         
         # Apply module filtering before scoring (same as regular /jobs endpoint)
         filtered_jobs = all_jobs
@@ -369,7 +368,7 @@ def get_personalized_jobs(
 
 # --- Application Tracking Endpoints ---
 @app.post("/applications")
-def track_application(job_data: dict = Body(...)):
+def track_application(job_data: dict = Body(...), db: Session = Depends(get_db)):
     """
     Add a job to the application tracking list.
     
@@ -383,10 +382,11 @@ def track_application(job_data: dict = Body(...)):
         HTTPException: If job data is invalid or tracking fails
     """
     try:
-        application = application_manager.add_application(job_data)
+        app_repo = ApplicationRepository(db)
+        application = app_repo.add_application(job_data)
         return {
             "success": True,
-            "data": application
+            "data": application.to_dict()
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -395,7 +395,7 @@ def track_application(job_data: dict = Body(...)):
 
 
 @app.get("/applications")
-def get_tracked_applications():
+def get_tracked_applications(db: Session = Depends(get_db)):
     """
     Retrieve all tracked applications sorted by last update.
     
@@ -406,17 +406,18 @@ def get_tracked_applications():
         HTTPException: If applications cannot be retrieved
     """
     try:
-        applications = application_manager.get_applications()
+        app_repo = ApplicationRepository(db)
+        applications = app_repo.get_applications()
         return {
             "success": True,
-            "data": applications
+            "data": [app.to_dict() for app in applications]
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @app.patch("/applications/{job_id}")
-def update_application(job_id: str, updates: dict = Body(...)):
+def update_application(job_id: str, updates: dict = Body(...), db: Session = Depends(get_db)):
     """
     Update an existing tracked application.
     
@@ -431,23 +432,24 @@ def update_application(job_id: str, updates: dict = Body(...)):
         HTTPException: If application not found or update data is invalid
     """
     try:
-        application = application_manager.update_application(job_id, updates)
+        app_repo = ApplicationRepository(db)
+        application = app_repo.update_application(job_id, updates)
+        if not application:
+            raise HTTPException(status_code=404, detail=f"Application with ID {job_id} not found")
         return {
             "success": True,
-            "data": application
+            "data": application.to_dict()
         }
+    except HTTPException:
+        raise
     except ValueError as e:
-        # Check if it's a "not found" error
-        if "not found" in str(e).lower():
-            raise HTTPException(status_code=404, detail=str(e))
-        else:
-            raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @app.delete("/applications/{job_id}")
-def remove_application(job_id: str):
+def remove_application(job_id: str, db: Session = Depends(get_db)):
     """
     Remove an application from tracking.
     
@@ -461,7 +463,8 @@ def remove_application(job_id: str):
         HTTPException: If application not found or removal fails
     """
     try:
-        removed = application_manager.remove_application(job_id)
+        app_repo = ApplicationRepository(db)
+        removed = app_repo.remove_application(job_id)
         if not removed:
             raise HTTPException(status_code=404, detail=f"Application with ID {job_id} not found")
         
@@ -479,25 +482,26 @@ def remove_application(job_id: str):
 
 
 @app.post("/scrape")
-async def scrape_jobs():
-    return await _scrape_modules(list(ACTIVE_SCRAPERS.keys()))
+async def scrape_jobs(db: Session = Depends(get_db)):
+    return await _scrape_modules(list(ACTIVE_SCRAPERS.keys()), db)
 
 
 @app.post("/scrape_modules")
-async def scrape_selected_modules(modules: list[str] = Body(..., embed=True)):
+async def scrape_selected_modules(modules: list[str] = Body(..., embed=True), db: Session = Depends(get_db)):
     """
     Example of expected JSON body :
     {
         "modules": ["airbus", "thales"]
     }
     """
-    return await _scrape_modules(modules)
+    return await _scrape_modules(modules, db)
 
 
 # --- ASYNC common function ---
-async def _scrape_modules(modules: list[str]):
-    jobs = load_jobs()
-    existing_links = {j["link"] for j in jobs}
+async def _scrape_modules(modules: list[str], db: Session):
+    job_repo = JobRepository(db)
+    all_jobs = job_repo.get_all_jobs()
+    existing_links = {job.link for job in all_jobs}
     
     tasks = []
     scraped_modules_names = []
@@ -516,7 +520,7 @@ async def _scrape_modules(modules: list[str]):
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     # Process results
-    new_jobs = []
+    new_jobs_count = 0
     failed_scrapers = []
     
     for module, result in zip(scraped_modules_names, results):
@@ -532,9 +536,10 @@ async def _scrape_modules(modules: list[str]):
             
             # Try to diagnose if we have an API key and usage is enabled
             try:
-                profile = profile_manager.loadProfile()
-                api_key = profile.get("groq_api_key")
-                use_for_fix = profile.get("use_for_scraper_fix", False)
+                profile_repo = ProfileRepository(db)
+                profile = profile_repo.get_profile()
+                api_key = profile.groq_api_key
+                use_for_fix = profile.use_for_scraper_fix
                 
                 if api_key and use_for_fix:
                     scraper_module = ACTIVE_SCRAPERS.get(module)
@@ -570,20 +575,22 @@ async def _scrape_modules(modules: list[str]):
                     job["tags"] = tagging_service.tagJob(job_title, job_description)
                     
                     job["new"] = True
-                    new_jobs.append(job)
+                    
+                    # Add to database
+                    job_repo.add_job(job)
+                    new_jobs_count += 1
                     existing_links.add(job["link"])
                 else:
                     print(f"Duplicate found: {job['link']}")
 
-    # Finalize and save
-    for job in jobs:
-        job["new"] = False
-
-    jobs = new_jobs + jobs
-    save_jobs(jobs)
+    # Mark all existing jobs as not new (bulk operation)
+    job_repo.mark_all_as_not_new()
+    
+    # Get total count
+    total_jobs = len(job_repo.get_all_jobs())
 
     return {
-        "added": len(new_jobs),
-        "total": len(jobs),
+        "added": new_jobs_count,
+        "total": total_jobs,
         "failed_scrapers": failed_scrapers,
     }

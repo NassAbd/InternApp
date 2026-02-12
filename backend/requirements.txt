@@ -8,3 +8,5 @@ PyPDF2
 python-multipart
 pytest
 hypothesis
+sqlalchemy
+alembic
