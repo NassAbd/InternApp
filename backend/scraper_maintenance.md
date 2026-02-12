@@ -28,13 +28,13 @@ Jobs include fields we need to return, and additional `tag` field for the person
 
 
 ### Automatic Tagging System
-The `TaggingService` automatically processes job titles and descriptions to extract relevant tags:
+The `TaggingService` automatically processes job titles and descriptions to extract relevant tags. When jobs are scraped and persisted to the database, tags are automatically generated and stored in the `jobs` table:
 
 - **Skill Tags**: `["python", "javascript", "react", "machine-learning"]`
 - **Category Tags**: `["software", "engineering", "data", "research"]`
 - **Industry Tags**: `["aerospace", "defense", "automotive"]`
 
-**Important**: Scrapers should **NOT** manually set the `tags` field. The tagging system will automatically analyze job content and assign appropriate tags for the personalized recommendation system.
+**Important**: Scrapers should **NOT** manually set the `tags` field. The tagging system will automatically analyze job content and assign appropriate tags when jobs are persisted to the SQLite database via the `JobRepository`.
 
 ## Note: testing Playwright without headless mode
 
@@ -147,13 +147,22 @@ ACTIVE_SCRAPERS = {
 ```
 
 ### 2. Test the Integration
-The tagging system will automatically process your jobs:
+The database and tagging system will automatically process your jobs:
 ```bash
 # Test the new scraper
 curl -X POST "http://localhost:8000/scrape_modules" \
      -H "Content-Type: application/json" \
      -d '{"modules": ["esa"]}'
+
+# Verify jobs were persisted to database
+curl "http://localhost:8000/jobs?modules=esa"
 ```
+
+**What Happens**:
+1. Your scraper returns job dictionaries to `_scrape_modules`
+2. Tags are automatically generated via `TaggingService`
+3. Jobs are persisted to SQLite database via `JobRepository`
+4. Jobs are immediately available via API endpoints
 
 ## Frontend Integration
 
