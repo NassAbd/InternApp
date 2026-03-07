@@ -1,9 +1,11 @@
+import logging
 import httpx
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 import asyncio
 from config import ARIANE_BASE_URL, INTERNSHIP_ARIANE_SPACE_SEARCH_URL, INTERNSHIP_ARIANE_GROUP_SEARCH_URL
 
+logger = logging.getLogger(__name__)
 
 async def fetch_arianespace_jobs():
     """Scrape the offers on arianespace website asynchronously (with httpx)"""
@@ -14,48 +16,59 @@ async def fetch_arianespace_jobs():
             response = await client.get(url)
             response.raise_for_status()
         except httpx.RequestError as e:
-            raise RuntimeError(f"Failed to fetch ArianeSpace jobs page: {e}")
+            logger.error(f"Failed to fetch ArianeSpace jobs page: {e}")
+            return []
 
     soup = BeautifulSoup(response.text, "html.parser")
 
     jobs_container = soup.select_one("#jobs_list_container")
+    if not jobs_container:
+        logger.error("Could not find jobs container (#jobs_list_container)")
+        return []
 
     jobs = []
     for li in jobs_container.find_all("li"):
-        a = li.find("a", href=True)
-        if not a:
-            raise ValueError("Could not find job link element (a href)")
+        try:
+            a = li.find("a", href=True)
+            if not a:
+                logger.error("Could not find job link element (a href)")
+                continue
 
-        title = a.get_text(strip=True)
-        if not title:
-            raise ValueError("Job title is empty")
+            title = a.get_text(strip=True)
+            if not title:
+                logger.error("Job title is empty")
+                continue
 
-        link = a["href"]
-        if not link:
-             raise ValueError("Job link attribute is empty")
-             
-        if not link.startswith("http"):
-            link = INTERNSHIP_ARIANE_SPACE_SEARCH_URL + link
+            link = a["href"]
+            if not link:
+                 logger.error("Job link attribute is empty")
+                 continue
+                 
+            if not link.startswith("http"):
+                link = INTERNSHIP_ARIANE_SPACE_SEARCH_URL + link
 
-        info_div = li.find("div", class_="mt-1")
-        location = None
-        if info_div:
-            spans = info_div.find_all("span")
-            if len(spans) >= 3:
-                location = spans[2].get_text(strip=True)
-            elif len(spans) >= 1:
-                location = spans[-1].get_text(strip=True)
-        
-        if not location:
-             raise ValueError("Could not find location in info_div")
+            info_div = li.find("div", class_="mt-1")
+            location = None
+            if info_div:
+                spans = info_div.find_all("span")
+                if len(spans) >= 3:
+                    location = spans[2].get_text(strip=True)
+                elif len(spans) >= 1:
+                    location = spans[-1].get_text(strip=True)
+            
+            if not location:
+                 logger.error("Could not find location in info_div")
+                 continue
 
-        jobs.append({
-            "module": "ariane",
-            "company": "Ariane",
-            "title": title,
-            "link": link,
-            "location": location,
-        })
+            jobs.append({
+                "module": "ariane",
+                "company": "Ariane",
+                "title": title,
+                "link": link,
+                "location": location,
+            })
+        except Exception as e:
+            logger.error(f"Unexpected error processing ArianeSpace job item: {e}")
 
     return jobs
 
@@ -82,57 +95,81 @@ async def fetch_arianegroup_jobs():
         )
 
         page = await context.new_page()
-        await page.goto(url, timeout=60000)
+        await page.goto(url, timeout=60000, wait_until="networkidle")
 
         while True:
-            await page.wait_for_selector("section[data-automation-id='jobResults'] li", timeout=10000)
-            items = await page.query_selector_all("section[data-automation-id='jobResults'] li")
+            try:
+                await page.locator("section[data-automation-id='jobResults'] li").first.wait_for(timeout=10000)
+            except Exception as e:
+                logger.warning(f"Could not find any job results or page empty: {e}")
+                break
+
+            items = await page.locator("section[data-automation-id='jobResults'] li").all()
 
             for item in items:
-                a_tag = await item.query_selector("a[data-automation-id='jobTitle']")
-                if not a_tag:
-                    raise ValueError("Could not find job title element (a[data-automation-id='jobTitle'])")
+                try:
+                    a_tag = item.locator("a[data-automation-id='jobTitle']")
+                    if await a_tag.count() == 0:
+                        logger.error("Could not find job title element (a[data-automation-id='jobTitle'])")
+                        continue
 
-                title = await a_tag.text_content()
-                title = title.strip()
-                if not title:
-                     raise ValueError("Job title is empty")
+                    title = await a_tag.inner_text()
+                    title = title.strip()
+                    if not title:
+                         logger.error("Job title is empty")
+                         continue
 
-                link = await a_tag.get_attribute("href")
-                if not link:
-                     raise ValueError("Job link is empty")
+                    link = await a_tag.get_attribute("href")
+                    if not link:
+                         logger.error("Job link is empty")
+                         continue
 
-                if link and link.startswith("/"):
-                    link = base_url + link
+                    if link and link.startswith("/"):
+                        link = base_url + link
 
-                loc_el = await item.query_selector("div[data-automation-id='locations'] dd")
-                if not loc_el:
-                    raise ValueError("Could not find location element (div[data-automation-id='locations'] dd)")
+                    loc_el = item.locator("div[data-automation-id='locations'] dd")
+                    if await loc_el.count() == 0:
+                        logger.error("Could not find location element (div[data-automation-id='locations'] dd)")
+                        continue
 
-                location = await loc_el.text_content()
-                location = location.strip() if location else None
-                if not location:
-                     raise ValueError("Location is empty")
+                    location = await loc_el.inner_text()
+                    location = location.strip() if location else None
+                    if not location:
+                         logger.error("Location is empty")
+                         continue
 
-                jobs.append({
-                    "module": "ariane",
-                    "company": "Ariane",
-                    "title": title,
-                    "link": link,
-                    "location": location,
-                })
+                    jobs.append({
+                        "module": "ariane",
+                        "company": "Ariane",
+                        "title": title,
+                        "link": link,
+                        "location": location,
+                    })
+                except Exception as e:
+                    logger.error(f"Unexpected error processing ArianeGroup job item: {e}")
 
             # Pagination
-            next_button = await page.query_selector("button[data-uxi-element-id='next']")
+            next_button = page.locator("button[data-uxi-element-id='next']")
             
-            if next_button:
-                is_enabled = await next_button.is_enabled()
-            else:
-                is_enabled = False
-
-            if next_button and is_enabled:
+            if await next_button.count() > 0 and await next_button.is_enabled():
+                # Store the text of the first job title
+                first_item_title_locator = page.locator("section[data-automation-id='jobResults'] li").first.locator("a[data-automation-id='jobTitle']")
+                old_title = await first_item_title_locator.inner_text()
+                
                 await next_button.click()
-                await page.wait_for_timeout(2000)
+                
+                # Smart wait logic: wait until the first job title changes
+                try:
+                    await page.wait_for_function(
+                        """(oldTitle) => {
+                            const el = document.querySelector("section[data-automation-id='jobResults'] li a[data-automation-id='jobTitle']");
+                            return el && el.innerText.trim() !== oldTitle;
+                        }""",
+                        arg=old_title.strip(),
+                        timeout=10000
+                    )
+                except Exception as e:
+                    logger.warning(f"Timeout waiting for next page job titles to update: {e}")
             else:
                 break
 
@@ -155,20 +192,17 @@ async def fetch_jobs():
     # return_exceptions=True allows to continue if one of the scrapers fails
     results = await asyncio.gather(*tasks, return_exceptions=True)
     
-    # Process the results
     success = False
-    
     for result in results:
         if isinstance(result, Exception):
             # Display the warning and continue
-            print(f"[WARN] Ariane fetch failed: {result}")
+            logger.warning(f"Ariane fetch failed: {result}")
         else:
             # Success: 'result' is a list of jobs
             all_jobs.extend(result)
             success = True
 
     if not success:
-        # If both scrapers failed
-        raise RuntimeError("No jobs found on either ArianeSpace or ArianeGroup pages")
+        logger.error("No jobs found on either ArianeSpace or ArianeGroup pages")
 
     return all_jobs
