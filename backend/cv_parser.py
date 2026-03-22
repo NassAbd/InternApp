@@ -8,7 +8,7 @@ tags using the Groq API, mapping the results to predefined categories.
 import io
 import json
 import requests
-from typing import Dict, List, Any, Optional, Tuple
+from typing import List, Tuple
 from PyPDF2 import PdfReader
 
 

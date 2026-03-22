@@ -5,7 +5,6 @@ Provides methods to manage job postings in the database.
 """
 
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
 from models import Job
 from typing import List, Optional, Dict, Any
 
@@ -123,7 +122,7 @@ class JobRepository:
         Returns:
             Number of jobs updated
         """
-        result = self.db.query(Job).filter(Job.new == True).update({"new": False})
+        result = self.db.query(Job).filter(Job.new).update({"new": False})
         self.db.commit()
         
         return result

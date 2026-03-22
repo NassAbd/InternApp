@@ -39,7 +39,6 @@ def init_db():
     This should be called on application startup to ensure
     all tables exist before any database operations.
     """
-    from models import Job, UserProfile, UserApplication  # Import to register models
     Base.metadata.create_all(bind=engine)
 
 

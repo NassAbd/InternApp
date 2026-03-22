@@ -5,7 +5,7 @@ Provides methods to manage user's tracked job applications.
 """
 
 from sqlalchemy.orm import Session, joinedload
-from models import UserApplication, Job, ApplicationStatus
+from models import UserApplication, ApplicationStatus
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 import hashlib

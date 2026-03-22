@@ -1,6 +1,6 @@
 import logging
 from playwright.async_api import async_playwright
-from config import INTERNSHIP_THALES_SEARCH_URL
+from constants import INTERNSHIP_THALES_SEARCH_URL
 
 logger = logging.getLogger(__name__)
 

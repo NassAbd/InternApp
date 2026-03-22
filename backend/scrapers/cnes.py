@@ -1,6 +1,6 @@
 import logging
 from playwright.async_api import async_playwright
-from config import INTERNSHIP_CNES_SEARCH_URL, CNES_BASE_URL
+from constants import INTERNSHIP_CNES_SEARCH_URL, CNES_BASE_URL
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ async def fetch_jobs():
         # Small wait to allow the popup to close and main content to be interactable
         try:
             await page.wait_for_timeout(1000)
-        except:
+        except Exception:
             pass
 
         try:

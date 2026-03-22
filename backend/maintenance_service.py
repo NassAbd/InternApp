@@ -1,6 +1,6 @@
 import json
 import requests
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
 class MaintenanceService:
     """Service for diagnosing scraper failures using LLM."""

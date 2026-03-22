@@ -95,25 +95,31 @@ docker compose up --build
 ### Option B: Run locally
 
 **Backend**
-1. (Optional) Create and activate a Python venv.
-2. Install deps:
+1. Change to the backend directory:
    ```bash
-   pip install -r backend/requirements.txt
+   cd backend
+   ```
+2. Install deps using `uv`:
+   ```bash
+   uv sync
    ```
 3. Install Playwright browsers (one-time):
    ```bash
-   python -m playwright install
+   uv run playwright install
    ```
-4. Start API:
+4. Start API inside the `uv` environment:
    ```bash
-   uvicorn backend.main:app --reload --port 8000
+   uv run uvicorn main:app --reload --port 8000
    ```
 
 **Frontend**
-1. Install Node 20+.
-2. Install deps:
+1. Navigate to the frontend directory and activate the specific Node version via `fnm`:
    ```bash
    cd frontend
+   fnm use
+   ```
+2. Install deps:
+   ```bash
    npm install
    ```
 3. Start dev server:
