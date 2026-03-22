@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
 export interface Notification {
@@ -32,6 +33,10 @@ interface NotificationProviderProps {
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
     const [notifications, setNotifications] = useState<Notification[]>([]);
 
+    const removeNotification = useCallback((id: string) => {
+        setNotifications(prev => prev.filter(notification => notification.id !== id));
+    }, []);
+
     const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
         const id = `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const newNotification: Notification = {
@@ -46,11 +51,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         setTimeout(() => {
             removeNotification(id);
         }, newNotification.duration);
-    }, []);
-
-    const removeNotification = useCallback((id: string) => {
-        setNotifications(prev => prev.filter(notification => notification.id !== id));
-    }, []);
+    }, [removeNotification]);
 
     const clearAllNotifications = useCallback(() => {
         setNotifications([]);

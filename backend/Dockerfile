@@ -38,12 +38,14 @@ COPY --from=playwright-base /ms-playwright /ms-playwright
 # Set environment variables for Playwright
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-# Copy and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy the uv configuration
+COPY pyproject.toml uv.lock ./
+
+# Install uv and dependencies
+RUN pip install uv && uv sync --frozen --no-dev
 
 # Copy application code
 COPY . .
 
 # Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

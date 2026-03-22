@@ -306,7 +306,7 @@ function AppContent() {
       for (const app of applicationTracker.state.applications) {
         if (app.job?.link) s.add(app.job.link);
       }
-    } catch (_) {
+    } catch {
       // ignore
     }
     return s;
@@ -331,7 +331,7 @@ function AppContent() {
         });
       }
       if (match) backendId = match.id;
-    } catch (_) {
+    } catch {
       // ignore mapping failures and try with provided id
     }
     await applicationTracker.untrackJob(backendId);

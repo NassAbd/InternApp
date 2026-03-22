@@ -1,6 +1,6 @@
 import logging
 from playwright.async_api import async_playwright
-from config import AIRBUS_BASE_URL, INTERNSHIP_AIRBUS_SEARCH_URL
+from constants import AIRBUS_BASE_URL, INTERNSHIP_AIRBUS_SEARCH_URL
 
 logger = logging.getLogger(__name__)
 

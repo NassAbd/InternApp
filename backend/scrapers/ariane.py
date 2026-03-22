@@ -3,7 +3,11 @@ import httpx
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 import asyncio
-from config import ARIANE_BASE_URL, INTERNSHIP_ARIANE_SPACE_SEARCH_URL, INTERNSHIP_ARIANE_GROUP_SEARCH_URL
+from constants import (
+    INTERNSHIP_ARIANE_SPACE_SEARCH_URL,
+    INTERNSHIP_ARIANE_GROUP_SEARCH_URL,
+    ARIANE_BASE_URL,
+)
 
 logger = logging.getLogger(__name__)
 
