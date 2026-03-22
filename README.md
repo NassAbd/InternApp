@@ -19,14 +19,16 @@ InternApp/
 │  │  ├─ profile_repository.py
 │  │  └─ application_repository.py
 │  ├─ scrapers/              # Site-specific scrapers (e.g. Ariane, Airbus)
-│  ├─ config.py              # Configuration and scraper registration
+│  ├─ config.py              # Scraper registry
+│  ├─ constants.py           # Shared constants and scraper URLs
 │  ├─ scoring_engine.py      # Job relevance scoring algorithm
 │  ├─ cv_parser.py           # AI-powered CV analysis
 │  ├─ maintenance_service.py # AI diagnosis for broken scrapers
 │  ├─ tagging_service.py     # Job categorization and tagging
 │  ├─ (internapp.db)         # SQLite database (auto-created)
-│  ├─ requirements.txt       # Python deps (FastAPI, Playwright, SQLAlchemy, etc.)
-│  └─ Dockerfile             # Uvicorn dev server, Playwright base image
+│  ├─ pyproject.toml         # Python dependencies manager (uv)
+│  ├─ uv.lock                # Lockfile for reproducible environments
+│  └─ Dockerfile             # Uvicorn dev server using uv
 ├─ frontend/
 │  ├─ src/
 │  │  ├─ components/         # React components (ProfileManager, CVUploader, ApplicationDashboard, etc.)

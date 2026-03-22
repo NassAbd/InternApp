@@ -36,8 +36,6 @@ The `TaggingService` automatically processes job titles and descriptions to extr
 
 **Important**: Scrapers should **NOT** manually set the `tags` field. The tagging system will automatically analyze job content and assign appropriate tags when jobs are persisted to the SQLite database via the `JobRepository`.
 
-## Note: testing Playwright without headless mode
-
 * **Local Debugging**:
     1.  **Modify Scraper**: Temporarily change the `headless` option in the Playwright launch call within the specific scraper file (`airbus.py`, `ariane.py`, etc.).
         ```python
@@ -46,34 +44,42 @@ The `TaggingService` automatically processes job titles and descriptions to extr
             # ... args
         )
         ```
-    2.  **Execute**: Run the module locally, a browser window will open, allowing you to see exactly what the scraper sees, where it stops, and if a CAPTCHA or alert blocks the execution.
-    3.  **Restore**: Remise `headless=True` before commiting the code.
+    2.  **Execute**: Run the module from the backend directory using `uv run`. To test a scraper in isolation, you might need to add a temporary `if __name__ == "__main__":` block:
+        ```bash
+        cd backend
+        uv run python scrapers/esa.py
+        ```
+    3.  **Restore**: Set `headless=True` back before committing the code.
 
-* **The Docker Challenge**:
-    * **Issue**: Running Playwright in non-headless mode (`headless=False`) requires access to a **display server** (an X server, like X11 or Wayland), which is typically absent in this Docker container.
-    * **Consequence**: Trying to run a scraper in non-headless mode in a Docker container will **fail** with display-related errors (e.g., `Protocol error (Target.attachToTarget): Target closed.`, `Xlib: connection to "..." refused`).
-    * **Best Practice**: We recommend to test the scraper in non-headless mode on your local machine only.
+> [!IMPORTANT]
+> **Docker & Non-Headless Mode**: Running Playwright with `headless=False` inside a Docker container will fail unless you have a display server (X11/Wayland) configured. Always perform visual debugging on your local machine, not inside the container.
 
 ## Adding a New Scraper
 
-To add a new scraper for a company (e.g., 'esa'):
+### 1. Add Constants
+Add the company's base URL and search URL to `backend/constants.py`:
+```python
+# backend/constants.py
+# ...
+# ESA
+ESA_BASE_URL = "https://jobs.esa.int"
+INTERNSHIP_ESA_SEARCH_URL = "https://jobs.esa.int/..."
+```
 
-### 1. Create the Module
+### 2. Create the Module
 Create a new Python file named `esa.py` inside the `backend/scrapers/` directory.
 
-### 2. Implement `async def fetch_jobs()`
-Implement the primary scraping function as an **asynchronous coroutine**. Most active scrapers use `playwright.async_api` to handle dynamic content.
-
-### 3. Return Format
-The function **must** return a list of job dictionaries with the core required fields.
+### 3. Implement `async def fetch_jobs()`
+Implement the primary scraping function as an **asynchronous coroutine**. Most active scrapers use `playwright.async_api` and import their URLs from `constants.py`.
 
 **Example `esa.py` Structure (Playwright Pattern):**
 ```python
 # esa.py
 from playwright.async_api import async_playwright
+from constants import ESA_BASE_URL, INTERNSHIP_ESA_SEARCH_URL
 
 async def fetch_jobs():
-    url = "https://jobs.esa.int/..."
+    url = INTERNSHIP_ESA_SEARCH_URL
     jobs = []
 
     async with async_playwright() as p:
@@ -100,7 +106,7 @@ async def fetch_jobs():
                     "module": "esa",
                     "company": "ESA",
                     "title": title.strip(),
-                    "link": f"https://jobs.esa.int{link}",
+                    "link": f"{ESA_BASE_URL}{link}" if link.startswith("/") else link,
                     "location": location_text.strip()
                 })
         except Exception as e:
