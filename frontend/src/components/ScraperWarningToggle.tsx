@@ -48,7 +48,7 @@ export default function ScraperWarningToggle({ failedScrapers = [] }: ScraperWar
             changes. <br /> If you encounter any issues or have suggestions for
             improvements, please report them on{" "}
             <a
-              href="https://github.com/NassAbd/InternApp/issues"
+              href="https://github.com/NassAbd/intern-app/issues"
               target="_blank"
               rel="noopener noreferrer"
               className={styles.sourceLink}
